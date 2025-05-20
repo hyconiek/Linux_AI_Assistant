@@ -138,26 +138,8 @@ W trybie interaktywnym lub jako jednorazowe zapytanie:
 *   `> znajdź wszystkie pliki PDF utworzone w ciągu ostatniego tygodnia w moim katalogu domowym`
 *   `> jak zaktualizować listę pakietów na Ubuntu?`
 *   `> utwórz archiwum tar.gz z katalogu 'moje_dane'`
-
-## Struktura Projektu
-
-    
-
-.
-├── src/
-│ ├── main.py # Główny skrypt uruchomieniowy asystenta
-│ └── modules/
-│ ├── command_executor.py # Moduł do wykonywania poleceń i wykrywania dystrybucji
-│ ├── gemini_integration.py # Moduł do integracji z Google Gemini API
-│ └── shellgpt_integration.py # (Opcjonalny/Nieużywany obecnie) Moduł do integracji z ShellGPT
-├── tests/
-│ └── test_assistant.py # Testy jednostkowe
-├── requirements.txt # Lista zależności Python
-├── LICENSE # Plik z treścią licencji MIT
-└── README.md # Ten plik
-
       
-*(Pliki takie jak `final_report.md`, `validation_report.md` itd. zostały pominięte w tej strukturze, zakładając, że nie są częścią głównego kodu/dokumentacji dla użytkownika końcowego w repozytorium).*
+
 
 ## Walidacja Bezpieczeństwa
 
