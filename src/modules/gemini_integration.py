@@ -26,7 +26,7 @@ class GeminiApiResponse:
     error: Optional[str] = None
 
 class GeminiIntegration:
-    def __init__(self, model_name: str = 'gemini-1.5-flash'):
+    def __init__(self, model_name: str = 'gemini-2.0-flash'):
         self.api_key = os.environ.get('GOOGLE_API_KEY')
         self.model_name = model_name
         self.model = None
@@ -178,7 +178,7 @@ if __name__ == '__main__':
     if not os.environ.get('GOOGLE_API_KEY'):
         print("Proszę ustawić zmienną środowiskową GOOGLE_API_KEY")
     else:
-        gemini_client = GeminiIntegration(model_name='gemini-1.5-flash')
+        gemini_client = GeminiIntegration(model_name='gemini-2.0-flash')
 
         test_distro_info = {
             'ID': 'ubuntu',

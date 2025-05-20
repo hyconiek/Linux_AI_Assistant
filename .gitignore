@@ -1,0 +1,7 @@
+# Komentarze zaczynają się od #
+config.local.ini
+*.log
+tmp/
+build/
+node_modules/
+.env
