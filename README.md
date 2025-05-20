@@ -1,8 +1,7 @@
-# linux_ai_terminal_assistant
       
 # Asystent AI dla Systemu Linux
 
-[![Licencja: MIT](https://img.shields.io/badge/Licencja-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Licencja: MIT](https://img.shields.io/badge/Licencja-MIT-yellow.svg)](https://github.com/hyconiek/linux_ai_terminal_assistant/blob/main/LICENSE)
 
 Asystent AI dla systemu Linux to narzędzie wiersza poleceń, które pomaga użytkownikom wykonywać zadania w terminalu poprzez tłumaczenie zapytań w języku naturalnym na odpowiednie polecenia powłoki. Wykorzystuje Google Gemini API do generowania sugestii poleceń oraz ich wyjaśnień.
 
@@ -44,6 +43,7 @@ Przed rozpoczęciem upewnij się, że masz zainstalowane następujące narzędzi
     ```
 
 2.  **Tworzenie i aktywacja środowiska wirtualnego (zalecane):**
+    Środowisko wirtualne (`venv`) pozwala na izolację zależności tego projektu od innych pakietów Pythona zainstalowanych w systemie.
     ```bash
     python3 -m venv venv
     source venv/bin/activate
@@ -63,7 +63,7 @@ Przed rozpoczęciem upewnij się, że masz zainstalowane następujące narzędzi
     ```bash
     pip install -r requirements.txt
     ```
-    *Jeśli `shellgpt_integration.py` nie jest  używany, możesz usunąć `requests`, `shell-gpt` i `configparser` z `requirements.txt`.*
+    *Jeśli `shellgpt_integration.py` nie jest używany, możesz usunąć `requests`, `shell-gpt` i `configparser` z `requirements.txt`.*
 
 ## Konfiguracja Klucza API
 
@@ -121,6 +121,15 @@ Po zainstalowaniu zależności i skonfigurowaniu klucza API, możesz uruchomić 
     python3 src/main.py --help
     ```
 
+### Uwaga dotycząca katalogu roboczego
+
+Asystent wykonuje polecenia w kontekście **bieżącego katalogu roboczego**, w którym został uruchomiony skrypt `main.py`. Jeśli chcesz operować na plikach lub katalogach w innym miejscu (np. w Twoim katalogu domowym), upewnij się, że:
+*   Uruchamiasz asystenta z odpowiedniego katalogu, LUB
+*   Podajesz pełne ścieżki w swoich zapytaniach (np. "pokaż pliki w /home/twoj_uzytkownik/Dokumenty"), LUB
+*   Używasz poleceń zmiany katalogu (np. "przejdź do katalogu Dokumenty") jako jednego z pierwszych zapytań do asystenta.
+
+Użycie środowiska wirtualnego (`venv`) nie zmienia tego zachowania ani nie ogranicza dostępu asystenta do systemu plików poza izolacją pakietów Pythona.
+
 ## Przykłady użycia
 
 W trybie interaktywnym lub jako jednorazowe zapytanie:
@@ -132,6 +141,11 @@ W trybie interaktywnym lub jako jednorazowe zapytanie:
 
 ## Struktura Projektu
 
+    
+
+IGNORE_WHEN_COPYING_START
+Use code with caution. Markdown
+IGNORE_WHEN_COPYING_END
 
 .
 ├── src/
@@ -143,36 +157,37 @@ W trybie interaktywnym lub jako jednorazowe zapytanie:
 ├── tests/
 │ └── test_assistant.py # Testy jednostkowe
 ├── requirements.txt # Lista zależności Python
-└── README.md # Ten plik```
-(Pliki takie jak final_report.md, `validation_report.md` itd. zostały pominięte w tej strukturze, zakładając, że nie są częścią głównego kodu/dokumentacji dla użytkownika końcowego w repozytorium).
-Walidacja Bezpieczeństwa
+├── LICENSE # Plik z treścią licencji MIT
+└── README.md # Ten plik
 
-Moduł SecurityValidator w command_executor.py odpowiada za:
+      
+*(Pliki takie jak `final_report.md`, `validation_report.md` itd. zostały pominięte w tej strukturze, zakładając, że nie są częścią głównego kodu/dokumentacji dla użytkownika końcowego w repozytorium).*
 
-    Identyfikację potencjalnie niebezpiecznych wzorców poleceń (np. rm -rf /).
+## Walidacja Bezpieczeństwa
 
-    Oznaczanie poleceń, które zazwyczaj wymagają podwyższonych uprawnień lub ostrożności (np. sudo, mkfs, dd).
-    W przypadku wykrycia polecenia jako niebezpiecznego, jego wykonanie jest blokowane. Dla poleceń wymagających potwierdzenia, użytkownik jest o tym informowany w trybie interaktywnym (obecnie w kodzie jest to zaznaczone jako miejsce na implementację faktycznego zapytania o potwierdzenie, a domyślnie zakłada się udzielenie zgody dla celów demonstracyjnych, co warto rozbudować).
+Moduł `SecurityValidator` w `command_executor.py` odpowiada za:
+*   Identyfikację potencjalnie niebezpiecznych wzorców poleceń (np. `rm -rf /`).
+*   Oznaczanie poleceń, które zazwyczaj wymagają podwyższonych uprawnień lub ostrożności (np. `sudo`, `mkfs`, `dd`).
+W przypadku wykrycia polecenia jako niebezpiecznego, jego wykonanie jest blokowane. Dla poleceń wymagających potwierdzenia, użytkownik jest o tym informowany w trybie interaktywnym (obecnie w kodzie jest to zaznaczone jako miejsce na implementację faktycznego zapytania o potwierdzenie, a domyślnie zakłada się udzielenie zgody dla celów demonstracyjnych, co warto rozbudować).
 
-Przyszłe Ulepszenia
+## Przyszłe Ulepszenia
 
-    Rozbudowa interakcji przy potwierdzaniu poleceń (faktyczne pytanie użytkownika).
+*   Rozbudowa interakcji przy potwierdzaniu poleceń (faktyczne pytanie użytkownika).
+*   Testowanie i pełne wsparcie dla większej liczby dystrybucji Linuxa.
+*   Rozbudowa bazy wiedzy dla trybu offline (jeśli będzie rozwijany).
+*   Możliwość wyboru silnika AI (np. Gemini vs. lokalny model lub inne API).
+*   Bardziej zaawansowane zarządzanie historią i preferencjami użytkownika.
+*   Potencjalnie prosty interfejs graficzny (GUI).
+*   Instrukcje dotyczące budowania i uruchamiania obrazu Docker (jeśli planowane).
 
-    Testowanie i pełne wsparcie dla większej liczby dystrybucji Linuxa.
+## Wkład w Projekt (Contributing)
 
-    Rozbudowa bazy wiedzy dla trybu offline (jeśli będzie rozwijany).
-
-    Możliwość wyboru silnika AI (np. Gemini vs. lokalny model lub inne API).
-
-    Bardziej zaawansowane zarządzanie historią i preferencjami użytkownika.
-
-    Potencjalnie prosty interfejs graficzny (GUI).
-
-Wkład w Projekt (Contributing)
-
-Jeśli chcesz przyczynić się do rozwoju projektu linux_ai_terminal_assistant, zapraszam do zgłaszania błędów (Issues) oraz proponowania zmian (Pull Requests) na stronie repozytorium GitHub.
+Jeśli chcesz przyczynić się do rozwoju projektu `linux_ai_terminal_assistant`, zapraszam do zgłaszania błędów (Issues) oraz proponowania zmian (Pull Requests) na [stronie repozytorium GitHub](https://github.com/hyconiek/linux_ai_terminal_assistant).
 
 Przed wprowadzeniem większych zmian, proszę o utworzenie "Issue" w celu dyskusji.
-Licencja
 
-Ten projekt jest udostępniany na licencji MIT. Rozważ dodanie pliku LICENSE do swojego repozytorium z treścią licencji MIT.
+## Licencja
+
+Ten projekt jest udostępniany na licencji MIT. Zobacz plik [LICENSE](LICENSE) w głównym katalogu repozytorium po więcej informacji. Użycie tego oprogramowania wymaga zachowania oryginalnej informacji o prawach autorskich: `Copyright (c) 2025 Krzysztof Żuchowski`.
+
+    
