@@ -143,10 +143,6 @@ W trybie interaktywnym lub jako jednorazowe zapytanie:
 
     
 
-IGNORE_WHEN_COPYING_START
-Use code with caution. Markdown
-IGNORE_WHEN_COPYING_END
-
 .
 ├── src/
 │ ├── main.py # Główny skrypt uruchomieniowy asystenta
