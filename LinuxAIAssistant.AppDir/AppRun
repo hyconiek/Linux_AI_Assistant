@@ -1,0 +1,14 @@
+#!/bin
+# AppRun dla Linux AI Assistant
+
+# Pobierz katalog, w którym znajduje się ten skrypt AppRun
+APPDIR="$(dirname "$(readlink -f "$0")")"
+
+# Ustawienie ścieżek, jeśli aplikacja tego wymaga
+# export LD_LIBRARY_PATH="$APPDIR/usr/lib:$LD_LIBRARY_PATH"
+# export QT_PLUGIN_PATH="$APPDIR/usr/plugins:$QT_PLUGIN_PATH"
+# export QML2_IMPORT_PATH="$APPDIR/usr/qml:$QML2_IMPORT_PATH"
+
+# Uruchom główny plik wykonywalny
+# $APPDIR/usr/bin/TwojaAplikacja "$@" przekazuje wszystkie argumenty do Twojej aplikacji
+exec "$APPDIR/usr/bin/Linux AI Assistant" "$@"
