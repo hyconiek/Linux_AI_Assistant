@@ -1,7 +1,26 @@
-# Komentarze zaczynają się od #
-config.local.ini
-*.log
-tmp/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+pip-freeze.txt
+pip-requirements.txt
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
 build/
-node_modules/
-.env
+dist/
+*.spec
+
+# IDE / Editor specific
+.vscode/
+.idea/
+*.swp
+*~
