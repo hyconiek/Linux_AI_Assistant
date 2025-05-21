@@ -6,6 +6,36 @@ Wszechstronny asystent napędzany sztuczną inteligencją, który pomaga generow
 
 Projekt na GitHub: [hyconiek/linux_ai_terminal_assistant](https://github.com/hyconiek/linux_ai_terminal_assistant)
 
+## 🎉 Najnowsze Wydanie: v1.0.2 - AppImage 🎉
+
+Najłatwiejszym sposobem na wypróbowanie **Asystenta AI dla Linuksa (GUI)** jest pobranie naszego najnowszego wydania w formacie AppImage! Pliki AppImage są przenośne i powinny działać na większości nowoczesnych dystrybucji Linuksa bez potrzeby instalacji.
+
+➡️ **[Pobierz `Linux-AI-Assistant-x86_64.AppImage` (140 MB) z sekcji Wydania (Releases)](https://github.com/hyconiek/linux_ai_terminal_assistant/releases/tag/1.0.2)** ⬅️
+*(Zastąp `1.0.2` aktualnym tagiem Twojego najnowszego wydania, jeśli jest inny)*
+
+### Jak Uruchomić AppImage:
+
+1.  **Pobierz** plik `Linux-AI-Assistant-x86_64.AppImage` z powyższego linku.
+2.  **Nadaj uprawnienia do wykonania**:
+    Otwórz terminal, przejdź do katalogu, do którego pobrałeś plik, i uruchom:
+    ```bash
+    chmod +x Linux-AI-Assistant-x86_64.AppImage
+    ```
+3.  **Uruchom aplikację**:
+    ```bash
+    ./Linux-AI-Assistant-x86_64.AppImage
+    ```
+    *(Niektóre środowiska graficzne mogą również pozwolić na uruchomienie poprzez dwukrotne kliknięcie.)*
+4.  **Klucz API**:
+    *   Przy pierwszym uruchomieniu, jeśli klucz API Gemini nie jest skonfigurowany, zostaniesz poproszony o jego wprowadzenie.
+    *   Możesz zarządzać swoim kluczem API i innymi ustawieniami poprzez "Ustawienia" (Plik > Ustawienia lub ikona koła zębatego).
+
+### Uwagi dotyczące AppImage:
+*   **Rozmiar**: Około 140 MB, ponieważ zawiera interpreter Pythona i niezbędne biblioteki. Planowane są przyszłe optymalizacje rozmiaru.
+*   **Integracja z Pulpitem**: Dla lepszej integracji z pulpitem (np. ikona w menu aplikacji), rozważ użycie narzędzia "AppImageLauncher" lub ręczne utworzenie pliku `.desktop` wskazującego na ten plik AppImage.
+*   **Pierwsze Uruchomienie**: Może być nieco wolniejsze, gdy AppImage konfiguruje swoje środowisko.
+*   **Wymagania**: 64-bitowa dystrybucja Linuksa (zalecane glibc 2.35+), może być wymagany pakiet `fuse` (`sudo apt install fuse`).
+
 ## Korzystanie ze Spakowanej Aplikacji (Zalecane dla GUI)
 
 Aby najłatwiej skorzystać z aplikacji GUI, pobierz najnowszy gotowy plik wykonywalny z sekcji [**Wydania (Releases)**](https://github.com/hyconiek/linux_ai_terminal_assistant/releases) tego repozytorium.

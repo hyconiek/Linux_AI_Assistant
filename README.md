@@ -6,6 +6,37 @@ A versatile AI-powered assistant to help you generate, understand, and execute L
 
 Find the project on GitHub: [hyconiek/linux_ai_terminal_assistant](https://github.com/hyconiek/linux_ai_terminal_assistant)
 
+## 🎉 Latest Release: v1.0.2 - AppImage 🎉
+
+The easiest way to try the **Linux AI Assistant GUI** is by downloading our latest AppImage release! AppImages are portable and should run on most modern Linux distributions without installation.
+
+➡️ **[Download `Linux-AI-Assistant-x86_64.AppImage` (140 MB) from Releases](https://github.com/hyconiek/linux_ai_terminal_assistant/releases/tag/1.0.2)** ⬅️
+*(Replace `1.0.2` with your actual latest tag if different)*
+
+### How to Run the AppImage:
+
+1.  **Download** the `Linux-AI-Assistant-x86_64.AppImage` file from the link above.
+2.  **Make it executable**:
+    Open your terminal, navigate to the directory where you downloaded the file, and run:
+    ```bash
+    chmod +x Linux-AI-Assistant-x86_64.AppImage
+    ```
+3.  **Run the application**:
+    ```bash
+    ./Linux-AI-Assistant-x86_64.AppImage
+    ```
+    *(Some desktop environments might also allow you to run it by double-clicking.)*
+4.  **API Key**:
+    *   On the first launch, if a Gemini API key is not configured, you will be prompted to enter one.
+    *   You can manage your API key and other settings via "Settings" (File > Settings or the gear icon).
+
+### AppImage Notes:
+*   **Size**: Approx. 140 MB, bundling Python and necessary libraries. Future optimizations planned.
+*   **Desktop Integration**: For menu icons, consider "AppImageLauncher" or manually creating a `.desktop` file.
+*   **First Run**: May be slightly slower as the AppImage sets up.
+*   **Requirements**: 64-bit Linux (glibc 2.35+ recommended), `fuse` package might be needed (`sudo apt install fuse`).
+
+
 ## Using the Packaged Application (Recommended for GUI)
 
 For the easiest way to use the GUI application, download the latest pre-built executable from the [**Releases Section**](https://github.com/hyconiek/linux_ai_terminal_assistant/releases) of this repository.
