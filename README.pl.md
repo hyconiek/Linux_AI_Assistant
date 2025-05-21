@@ -11,7 +11,7 @@ Projekt na GitHub: [hyconiek/linux_ai_terminal_assistant](https://github.com/hyc
 Najłatwiejszym sposobem na wypróbowanie **Asystenta AI dla Linuksa (GUI)** jest pobranie naszego najnowszego wydania w formacie AppImage! Pliki AppImage są przenośne i powinny działać na większości nowoczesnych dystrybucji Linuksa bez potrzeby instalacji.
 
 ➡️ **[Pobierz `Linux-AI-Assistant-x86_64.AppImage` (140 MB) z sekcji Wydania (Releases)](https://github.com/hyconiek/linux_ai_terminal_assistant/releases/tag/1.0.2)** ⬅️
-*(Zastąp `1.0.2` aktualnym tagiem Twojego najnowszego wydania, jeśli jest inny)*
+
 
 ### Jak Uruchomić AppImage:
 

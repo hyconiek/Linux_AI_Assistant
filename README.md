@@ -11,7 +11,7 @@ Find the project on GitHub: [hyconiek/linux_ai_terminal_assistant](https://githu
 The easiest way to try the **Linux AI Assistant GUI** is by downloading our latest AppImage release! AppImages are portable and should run on most modern Linux distributions without installation.
 
 ➡️ **[Download `Linux-AI-Assistant-x86_64.AppImage` (140 MB) from Releases](https://github.com/hyconiek/linux_ai_terminal_assistant/releases/tag/1.0.2)** ⬅️
-*(Replace `1.0.2` with your actual latest tag if different)*
+
 
 ### How to Run the AppImage:
 
