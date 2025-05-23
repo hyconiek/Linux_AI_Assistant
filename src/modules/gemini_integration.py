@@ -10,20 +10,20 @@ from typing import Dict, Optional, List, Any
 
 # Logger dla tego modułu
 logger = logging.getLogger("gemini_api")
-# Poziom logowania będzie kontrolowany przez konfigurację w backend_cli.py
-# Jeśli LAA_VERBOSE_LOGGING_EFFECTIVE jest ustawione, backend_cli ustawi poziom DEBUG dla roota.
 
 @dataclass
 class GeminiApiResponse:
     success: bool
-    command: str # W generate_command_with_explanation to jest polecenie, w innych może być pełna odpowiedź AI
-    explanation: str # W generate_command_with_explanation to jest wyjaśnienie, w innych może być częścią odpowiedzi
+    command: str
+    explanation: str
     error: Optional[str] = None
     analyzed_text_type: Optional[str] = None # Dla analyze_text_input_type
     fix_suggestion: Optional[str] = None     # Dla analyze_execution_error_and_suggest_fix
+    suggested_interaction_input: Optional[str] = None # np. "t", "y", "opcja1"
+    suggested_button_label: Optional[str] = None     # np. "Zainstaluj (potwierdź T)"
 
 class GeminiIntegration:
-    def __init__(self, model_name: str = 'gemini-2.0-flash'): # Domyślny model
+    def __init__(self, model_name: str = 'gemini-1.5-flash'): # Używamy stabilnego modelu
         self.api_key = os.environ.get('GOOGLE_API_KEY')
         self.model_name = model_name
         self.genai_model: Optional[genai.GenerativeModel] = None
@@ -37,7 +37,7 @@ class GeminiIntegration:
                 logger.info(f"Skonfigurowano i zainicjalizowano model Gemini API: {self.model_name}")
             except Exception as e:
                 logger.error(f"Błąd podczas konfiguracji lub inicjalizacji Gemini API: {e}", exc_info=True)
-                self.api_key = None # Unieważnij klucz, jeśli konfiguracja zawiodła
+                self.api_key = None
 
     def _send_request_to_gemini(self,
                                 prompt_parts: List[Any],
@@ -49,16 +49,13 @@ class GeminiIntegration:
                 error="Klucz API Google nie skonfigurowany lub model nie zainicjalizowany."
             )
         try:
-            # Ustawienia bezpieczeństwa i generowania
             safety_settings = [
                 {"category": genai_types.HarmCategory.HARM_CATEGORY_HARASSMENT, "threshold": genai_types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE},
                 {"category": genai_types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, "threshold": genai_types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE},
                 {"category": genai_types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, "threshold": genai_types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE},
-                # Dla DANGEROUS_CONTENT, bardziej restrykcyjne ustawienie niż domyślne może być BLOCK_LOW_AND_ABOVE
-                # Ale BLOCK_ONLY_HIGH jest często używane, aby umożliwić generowanie poleceń systemowych.
                 {"category": genai_types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, "threshold": genai_types.HarmBlockThreshold.BLOCK_ONLY_HIGH},
             ]
-            generation_config = genai_types.GenerationConfig(temperature=0.2, max_output_tokens=2048) # Niska temperatura dla precyzji
+            generation_config = genai_types.GenerationConfig(temperature=0.2, max_output_tokens=2048)
 
             response: genai_types.GenerateContentResponse
             if is_chat and chat_session:
@@ -77,7 +74,7 @@ class GeminiIntegration:
                    hasattr(response.prompt_feedback, 'block_reason') and response.prompt_feedback.block_reason is not None:
                     block_reason_enum_type = getattr(genai_types, 'BlockReason', None)
                     if block_reason_enum_type and hasattr(block_reason_enum_type, 'Name'):
-                        try: reason_name = block_reason_enum_type.Name(response.prompt_feedback.block_reason)
+                        try: reason_name = block_reason_enum_type.Name(response.prompt_feedback.block_reason) # type: ignore
                         except ValueError: reason_name = str(response.prompt_feedback.block_reason)
                     else: reason_name = str(response.prompt_feedback.block_reason)
                 logger.error(f"Odpowiedź Gemini zablokowana lub pusta. Powód: {reason_name}")
@@ -89,11 +86,9 @@ class GeminiIntegration:
 
             logger.debug(f"Gemini: Candidate.finish_reason: {candidate.finish_reason}, Resolved Name: {finish_reason_name_str}")
 
-            # Akceptowalne powody zakończenia
-            acceptable_finish_reasons = ["STOP", "MAX_TOKENS"] # Nazwy enumów
+            acceptable_finish_reasons = ["STOP", "MAX_TOKENS"]
             if finish_reason_name_str not in acceptable_finish_reasons:
                 logger.error(f"Generowanie zakończone z niespodziewanym powodem: {finish_reason_name_str} (raw: {candidate.finish_reason})")
-                # Można dodać logowanie safety_ratings, jeśli są dostępne
                 return GeminiApiResponse(success=False, command="", explanation="", error=f"Błąd generowania AI: {finish_reason_name_str}")
 
             if not candidate.content or not candidate.content.parts:
@@ -101,33 +96,60 @@ class GeminiIntegration:
                 return GeminiApiResponse(success=False, command="", explanation="", error="Brak zawartości tekstowej w odpowiedzi AI.")
 
             raw_text = "".join(part.text for part in candidate.content.parts if hasattr(part, 'text')).strip()
-            # Zwracamy cały raw_text; parsowanie specyficzne dla formatu będzie w metodach wywołujących
-            return GeminiApiResponse(success=True, command=raw_text, explanation=raw_text) # explanation jest tutaj tymczasowe
+            return GeminiApiResponse(success=True, command=raw_text, explanation=raw_text)
 
         except Exception as e:
             logger.error(f"Wyjątek podczas komunikacji z Gemini API: {str(e)}", exc_info=True)
             return GeminiApiResponse(success=False, command="", explanation="", error=f"Wyjątek API: {str(e)}")
 
-
     def generate_command_with_explanation(self, user_prompt: str, distro_info: Dict[str, str],
                                            working_dir: Optional[str] = None,
+                                           cwd_file_list: Optional[List[str]] = None, # Nowy argument
                                            history: Optional[List[Dict[str, Any]]] = None,
                                            language_instruction: Optional[str] = None) -> GeminiApiResponse:
         distro_context = f"Dystrybucja: {distro_info.get('ID', 'nieznana')} {distro_info.get('VERSION_ID', '')}, Menedżer pakietów: {distro_info.get('PACKAGE_MANAGER', 'nieznany')}."
         wd_context = f"Aktualny katalog roboczy: {working_dir}" if working_dir else "Katalog roboczy nieznany."
         lang_instr = language_instruction if language_instruction else "Respond in English."
 
+        cwd_files_info = "Brak informacji o plikach w CWD."
+        if cwd_file_list:
+            if len(cwd_file_list) > 20: # Ograniczenie, aby nie przepełnić promptu
+                cwd_files_info = f"Dostępne pliki w bieżącym katalogu roboczym ({working_dir}) (pierwsze 20): {', '.join(cwd_file_list[:20])}, ..."
+            elif cwd_file_list: # Niepusta lista, ale nie za długa
+                 cwd_files_info = f"Dostępne pliki w bieżącym katalogu roboczym ({working_dir}): {', '.join(cwd_file_list)}."
+            else: # Pusta lista plików
+                 cwd_files_info = f"Brak plików (lub tylko katalogi) w bieżącym katalogu roboczym ({working_dir})."
+
+
         system_instruction = f"""Jesteś ekspertem od terminala Linux. Twoim zadaniem jest pomoc użytkownikowi przez wygenerowanie odpowiedniego polecenia.
 Kontekst systemu: {distro_context} {wd_context}
+{cwd_files_info}
 {lang_instr}
+
+Jeśli użytkownik wpisze nazwę pliku z literówką lub złą wielkością liter, ale na liście plików z CWD jest pasujący plik, użyj poprawnej nazwy z listy.
+
 Format odpowiedzi:
 NAJPIERW linia z poleceniem.
 W DOKŁADNIE NASTĘPNEJ linii słowo kluczowe "WYJAŚNIENIE:" (bez dodatkowych znaków).
 Po "WYJAŚNIENIE:" krótkie, 1-2 zdaniowe wyjaśnienie polecenia (w języku określonym przez instrukcję językową).
-Nie dodawaj nic więcej, żadnych wstępów, markdown.
-Przykład (jeśli język to polski):
-ls -la /tmp
-WYJAŚNIENIE: Listuje wszystkie pliki i katalogi w /tmp w formacie długim, włącznie z ukrytymi.
+
+JEŚLI użytkownik prosi o wykonanie akcji, która normalnie wymaga prostego potwierdzenia (np. instalacja pakietu, gdzie system zapyta 'Czy chcesz kontynuować? [T/n]'), I intencja użytkownika jest jasna, że CHCE tej akcji (np. "zainstaluj ten pakiet"), TO wygeneruj polecenie z flagą automatycznego potwierdzenia (np. sudo apt install -y nazwa-pakietu). W takim przypadku NIE generuj sekcji INTERAKCJA_POLECENIE. W WYJAŚNIENIE wspomnij o użytej fladze automatycznego potwierdzenia.
+
+JEŚLI jednak polecenie wywoła bardziej złożoną interakcję, lub nie ma prostej flagi typu '-y', LUB jeśli chcesz dać użytkownikowi bardziej świadomy wybór przez GUI (np. użytkownik pyta ogólnie "jak zainstalować X" zamiast "zainstaluj X"), możesz zasugerować odpowiedź i etykietę dla przycisku. W DOKŁADNIE NASTĘPNEJ linii po WYJAŚNIENIE: (jeśli jest taka potrzeba) dodaj słowo kluczowe "INTERAKCJA_POLECENIE:"
+Po "INTERAKCJA_POLECENIE:" podaj:
+  1. Sugerowaną odpowiedź tekstową (np. "t", "y", "opcja1").
+  2. ŚREDNIK (;)
+  3. Etykietę dla przycisku w GUI, która odzwierciedla akcję (np. "Zainstaluj (potwierdź T)", "Wybierz opcję X"). Etykieta powinna być krótka i zrozumiała.
+
+Nie dodawaj nic więcej, żadnych wstępów, markdown, poza wymaganym formatem.
+Przykład 1 (automatyczne potwierdzenie, język polski):
+sudo apt install -y firefox
+WYJAŚNIENIE: Instaluje przeglądarkę Firefox używając apt, automatycznie potwierdzając (-y) wszystkie pytania.
+
+Przykład 2 (sugestia dla GUI, gdy nie ma -y, język polski):
+sudo apt install gimp
+WYJAŚNIENIE: Przygotowuje polecenie do instalacji GIMP. System zapyta o potwierdzenie.
+INTERAKCJA_POLECENIE: t;Zainstaluj GIMP (potwierdź T)
 
 Jeśli zapytanie jest niejasne lub zbyt ogólne, aby wygenerować jedno polecenie, odpowiedz TYLKO słowami: CLARIFY_REQUEST
 Jeśli zapytanie wydaje się niebezpieczne, odpowiedz TYLKO słowami: DANGEROUS_REQUEST
@@ -145,16 +167,13 @@ Jeśli zapytanie wydaje się niebezpieczne, odpowiedz TYLKO słowami: DANGEROUS_
 
         logger.debug(f"Gemini: Przygotowana historia dla ChatSession: {json.dumps(gemini_history_formatted, indent=2, ensure_ascii=False)}")
         chat_session = self.genai_model.start_chat(history=gemini_history_formatted)
-
-        # Łączymy instrukcję systemową z promptem użytkownika dla tej tury czatu
         prompt_for_chat = f"{system_instruction}\n\nZadanie od użytkownika: \"{user_prompt}\"\nWygeneruj polecenie i wyjaśnienie."
-
         api_response_wrapper = self._send_request_to_gemini([prompt_for_chat], is_chat=True, chat_session=chat_session)
 
         if not api_response_wrapper.success:
             return GeminiApiResponse(success=False, command="", explanation="", error=api_response_wrapper.error)
 
-        raw_text = api_response_wrapper.command # _send_request_to_gemini zwraca cały tekst w 'command'
+        raw_text = api_response_wrapper.command
 
         if raw_text.strip() == "CLARIFY_REQUEST":
             return GeminiApiResponse(success=False, command="", explanation="", error="CLARIFY_REQUEST")
@@ -162,24 +181,50 @@ Jeśli zapytanie wydaje się niebezpieczne, odpowiedz TYLKO słowami: DANGEROUS_
             return GeminiApiResponse(success=False, command="", explanation="", error="DANGEROUS_REQUEST")
 
         command_part, explanation_part = "", ""
-        separator = "WYJAŚNIENIE:"
-        if separator in raw_text:
-            parts = raw_text.split(separator, 1)
-            command_part = parts[0].strip()
-            if len(parts) > 1: explanation_part = parts[1].strip()
-        else: # Jeśli nie ma separatora, cała odpowiedź to polecenie, lub błąd formatowania
-            command_part = raw_text
-            logger.warning("Separator 'WYJAŚNIENIE:' nie znaleziony w odpowiedzi AI (generate_command). Odpowiedź: '%s'", raw_text)
-            # Możemy spróbować wywołać AI ponownie, aby tylko wygenerowało wyjaśnienie dla `command_part`
-            # ale na razie zostawiamy puste wyjaśnienie
-            explanation_part = f"({lang_instr.split('.')[0].replace('ODPOWIADAJ ZAWSZE W JĘZYKU ', '').capitalize()}: AI nie dostarczyło wyjaśnienia w oczekiwanym formacie)"
+        interaction_input, button_label = None, None
+
+        lines = raw_text.split('\n')
+        command_part = lines[0].strip() if lines else ""
+
+        default_explanation_on_format_error = f"({lang_instr.split('.')[0].replace('ODPOWIADAJ ZAWSZE W JĘZYKU ', '').capitalize()}: AI nie dostarczyło wyjaśnienia w oczekiwanym formacie)"
+
+        idx = 1
+        if idx < len(lines) and lines[idx].strip().startswith("WYJAŚNIENIE:"):
+            explanation_content = lines[idx].strip()[len("WYJAŚNIENIE:"):].strip()
+            idx += 1
+
+            # Zbieranie wieloliniowego wyjaśnienia, jeśli występuje przed INTERAKCJA_POLECENIE
+            while idx < len(lines) and not lines[idx].strip().startswith("INTERAKCJA_POLECENIE:"):
+                explanation_content += "\n" + lines[idx].strip()
+                idx += 1
+            explanation_part = explanation_content.strip()
+
+            if idx < len(lines) and lines[idx].strip().startswith("INTERAKCJA_POLECENIE:"):
+                interaction_line_content = lines[idx].strip()[len("INTERAKCJA_POLECENIE:"):].strip()
+                if ";" in interaction_line_content:
+                    interaction_input, button_label = map(str.strip, interaction_line_content.split(";", 1))
+                else:
+                    interaction_input = interaction_line_content
+                    button_label = f"Wykonaj ({interaction_input})" if interaction_input else "Wykonaj"
+                logger.info(f"AI zasugerowało interakcję: input='{interaction_input}', label='{button_label}'")
+        elif command_part: # Tylko polecenie, brak poprawnego wyjaśnienia
+            explanation_part = default_explanation_on_format_error
+        else: # Pusta odpowiedź lub zły format
+             logger.error(f"Nie udało się sparsować polecenia/wyjaśnienia z odpowiedzi AI: '{raw_text}'")
+             return GeminiApiResponse(success=False, command="", explanation="", error="Nie udało się sparsować polecenia/wyjaśnienia z odpowiedzi AI.")
+
+        if not command_part: # To nie powinno się zdarzyć, jeśli wcześniejszy warunek 'else' zadziałał
+            logger.error(f"Krytyczny błąd: Brak polecenia po parsowaniu odpowiedzi AI: '{raw_text}'")
+            return GeminiApiResponse(success=False, command="", explanation=explanation_part, error="Brak polecenia w odpowiedzi AI.")
+
+        # Ostateczne czyszczenie, jeśli explanation_part jest puste, a był błąd formatu
+        if not explanation_part.strip() and command_part:
+            explanation_part = default_explanation_on_format_error
 
 
-        if not command_part:
-            logger.error(f"Nie udało się sparsować polecenia z odpowiedzi AI: '{raw_text}'")
-            return GeminiApiResponse(success=False, command="", explanation="", error="Nie udało się sparsować polecenia z odpowiedzi AI.")
-
-        return GeminiApiResponse(success=True, command=command_part, explanation=explanation_part)
+        return GeminiApiResponse(success=True, command=command_part, explanation=explanation_part,
+                                 suggested_interaction_input=interaction_input,
+                                 suggested_button_label=button_label)
 
     def analyze_text_input_type(self, text_input: str, language_instruction: Optional[str] = None) -> GeminiApiResponse:
         lang_instr = language_instruction if language_instruction else "Respond in English."
@@ -197,8 +242,7 @@ Jeśli "type" to "other", "explanation" powinno być puste.
         if not api_response_wrapper.success:
             return GeminiApiResponse(success=False, command="", explanation="", error=api_response_wrapper.error, analyzed_text_type="error")
 
-        raw_ai_response_text = api_response_wrapper.command # Cała odpowiedź AI
-        # Proste czyszczenie popularnych artefaktów markdown dla JSON
+        raw_ai_response_text = api_response_wrapper.command
         cleaned_json_text = raw_ai_response_text.replace("```json", "").replace("```", "").strip()
 
         try:
@@ -296,42 +340,41 @@ Jeśli błąd jest zbyt ogólny, w "fix_suggestion" napisz (w języku z instrukc
             return GeminiApiResponse(success=False, command=command, explanation="", error=f"Nieoczekiwany błąd sugestii: {e}")
 
 if __name__ == '__main__':
-    # Ustawienie logowania dla testów stand-alone tego modułu
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler()])
-
     if not os.environ.get('GOOGLE_API_KEY'):
         print("Proszę ustawić zmienną środowiskową GOOGLE_API_KEY do testów.")
     else:
-        gemini_client = GeminiIntegration(model_name='gemini-2.0-flash') # Użyj nowego modelu, jeśli trzeba
+        gemini_client = GeminiIntegration()
         test_distro_info = {'ID': 'ubuntu', 'VERSION_ID': '22.04', 'PACKAGE_MANAGER': 'apt'}
         test_working_dir = "/home/user/documents"
+        test_cwd_files = ["plik1.txt", "Dokument.pdf", "obraz.JPG", "stary_skrypt.sh"]
         polish_lang_instruction = "ODPOWIADAJ ZAWSZE W JĘZYKU POLSKIM. Wyjaśnienie polecenia i wszelkie inne teksty MUSZĄ być po polsku."
 
-        print("\n--- Test: Generowanie polecenia (język polski) ---")
-        result_pl = gemini_client.generate_command_with_explanation(
-            "pokaż użycie RAM", test_distro_info, test_working_dir, language_instruction=polish_lang_instruction
+        print("\n--- Test: Generowanie polecenia z auto-potwierdzeniem (język polski) ---")
+        result_auto_pl = gemini_client.generate_command_with_explanation(
+            "zainstaluj od razu htop", test_distro_info, test_working_dir, test_cwd_files, language_instruction=polish_lang_instruction
         )
-        if result_pl.success:
-            print(f"Polecenie: {result_pl.command}\nWyjaśnienie: {result_pl.explanation}")
+        if result_auto_pl.success:
+            print(f"Polecenie: {result_auto_pl.command}\nWyjaśnienie: {result_auto_pl.explanation}")
+            print(f"Sugerowana interakcja: {result_auto_pl.suggested_interaction_input}, Etykieta: {result_auto_pl.suggested_button_label}")
         else:
-            print(f"Błąd: {result_pl.error}")
+            print(f"Błąd: {result_auto_pl.error}")
 
-        print("\n--- Test: Analiza typu tekstu (polecenie, język polski) ---")
-        analysis1_pl = gemini_client.analyze_text_input_type(
-            "grep -i 'error' /var/log/syslog", language_instruction=polish_lang_instruction
+        print("\n--- Test: Generowanie polecenia z sugestią interakcji (język polski) ---")
+        result_inter_pl = gemini_client.generate_command_with_explanation(
+            "jak zainstalować inkscape?", test_distro_info, test_working_dir, test_cwd_files, language_instruction=polish_lang_instruction
         )
-        print(f"Analiza 1 PL: Success: {analysis1_pl.success}, Type: {analysis1_pl.analyzed_text_type}, Explanation: {analysis1_pl.explanation}, Error: {analysis1_pl.error}")
+        if result_inter_pl.success:
+            print(f"Polecenie: {result_inter_pl.command}\nWyjaśnienie: {result_inter_pl.explanation}")
+            print(f"Sugerowana interakcja: {result_inter_pl.suggested_interaction_input}, Etykieta: {result_inter_pl.suggested_button_label}")
+        else:
+            print(f"Błąd: {result_inter_pl.error}")
 
-        print("\n--- Test: Analiza błędu wykonania (język polski) ---")
-        analysis_err1_pl = gemini_client.analyze_execution_error_and_suggest_fix(
-            "mkdir /test_dir", "mkdir: cannot create directory ‘/test_dir’: Permission denied", 1,
-            test_distro_info, "/home/user", language_instruction=polish_lang_instruction
+        print("\n--- Test: Generowanie polecenia z korektą nazwy pliku (CWD) ---")
+        result_file_pl = gemini_client.generate_command_with_explanation(
+            "pokaż zawartość plik1.TXT", test_distro_info, test_working_dir, test_cwd_files, language_instruction=polish_lang_instruction
         )
-        print(f"Analiza błędu 1 PL (Sukces: {analysis_err1_pl.success}):\nSugestia: {analysis_err1_pl.fix_suggestion}\nBłąd AI: {analysis_err1_pl.error}")
-
-        print("\n--- Test: Generowanie pytań doprecyzowujących (język polski) ---")
-        questions_pl = gemini_client.generate_clarification_questions(
-            "chcę zoptymalizować system pod gry", test_distro_info, "/etc", language_instruction=polish_lang_instruction
-        )
-        if questions_pl: [print(f"- {q}") for q in questions_pl]
-        else: print("Brak pytań doprecyzowujących lub AI uznało zapytanie za jasne (lub błąd).")
+        if result_file_pl.success:
+            print(f"Polecenie: {result_file_pl.command}\nWyjaśnienie: {result_file_pl.explanation}")
+        else:
+            print(f"Błąd: {result_file_pl.error}")
