@@ -7,7 +7,7 @@ A versatile AI-powered assistant to help you generate, understand, and execute L
 Find the project on GitHub: [hyconiek/linux_ai_terminal_assistant](https://github.com/hyconiek/linux_ai_terminal_assistant)
 
 ## 🎉 Latest Release: v1.0.3 - AppImage 🎉
-
+![screenshot](./screenshot.png)
 The easiest way to try the **Linux AI Assistant GUI** is by downloading our latest AppImage release! AppImages are portable and should run on most modern Linux distributions without installation.
 
 ➡️ **[Download `Linux-AI-Assistant-x86_64.AppImage` (115 MB) from Releases](https://github.com/hyconiek/linux_ai_terminal_assistant/releases/tag/1.0.3)** ⬅️
