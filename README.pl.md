@@ -10,7 +10,7 @@ Projekt na GitHub: [hyconiek/linux_ai_terminal_assistant](https://github.com/hyc
 
 Najłatwiejszym sposobem na wypróbowanie **Asystenta AI dla Linuksa (GUI)** jest pobranie naszego najnowszego wydania w formacie AppImage! Pliki AppImage są przenośne i powinny działać na większości nowoczesnych dystrybucji Linuksa bez potrzeby instalacji.
 
-➡️ **[Pobierz `Linux-AI-Assistant-x86_64.AppImage` (140 MB) z sekcji Wydania (Releases)](https://github.com/hyconiek/linux_ai_terminal_assistant/releases/tag/1.0.2)** ⬅️
+➡️ **[Pobierz `Linux-AI-Assistant-x86_64.AppImage` (115 MB) z sekcji Wydania (Releases)](https://github.com/hyconiek/linux_ai_terminal_assistant/releases/tag/1.0.3)** ⬅️
 
 
 ### Jak Uruchomić AppImage:
@@ -31,7 +31,7 @@ Najłatwiejszym sposobem na wypróbowanie **Asystenta AI dla Linuksa (GUI)** jes
     *   Możesz zarządzać swoim kluczem API i innymi ustawieniami poprzez "Ustawienia" (Plik > Ustawienia lub ikona koła zębatego).
 
 ### Uwagi dotyczące AppImage:
-*   **Rozmiar**: Około 140 MB, ponieważ zawiera interpreter Pythona i niezbędne biblioteki. Planowane są przyszłe optymalizacje rozmiaru.
+*   **Rozmiar**: Około 115 MB, ponieważ zawiera interpreter Pythona i niezbędne biblioteki. Planowane są przyszłe optymalizacje rozmiaru.
 *   **Integracja z Pulpitem**: Dla lepszej integracji z pulpitem (np. ikona w menu aplikacji), rozważ użycie narzędzia "AppImageLauncher" lub ręczne utworzenie pliku `.desktop` wskazującego na ten plik AppImage.
 *   **Pierwsze Uruchomienie**: Może być nieco wolniejsze, gdy AppImage konfiguruje swoje środowisko.
 *   **Wymagania**: 64-bitowa dystrybucja Linuksa (zalecane glibc 2.35+), może być wymagany pakiet `fuse` (`sudo apt install fuse`).
