@@ -53,7 +53,7 @@ if not _IS_BACKEND_MODE:
             module_base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
         if module_base_path not in sys.path:
              sys.path.insert(0, module_base_path)
-        from modules.gemini_integration import GeminiIntegration # type: ignore
+        from modules.gemini_integration import GeminiIntegration, GeminiApiResponse # type: ignore
     except ImportError as e:
         print(f"Warning (GUI): Could not import GeminiIntegration module directly. Error: {e}", file=sys.stderr)
 
@@ -63,7 +63,7 @@ EXPLANATIONS_CACHE_FILE = os.path.join(CONFIG_DIR, "explanations_cache.json")
 DEFAULT_CONFIG = {
     "api_keys": {"gemini": "", "openai": "", "anthropic": ""},
     "show_instructions": True, "theme": "dark", "max_history": 100,
-    "verbose_logging": True, "gui_model_name": 'gemini-1.5-flash'
+    "verbose_logging": True, "gui_model_name": 'gemini-2.5-flash-preview-05-20'
 }
 
 # --- Klasy dialogów ---
@@ -107,16 +107,15 @@ class InstructionsDialog(QDialog):
             "<h3>How to use:</h3>"
             "<ol>"
             "<li>Type your request in natural language (e.g., 'Show all running processes')</li>"
-            "<li>The assistant will generate a suitable Linux command</li>"
-            "<li>Review the command and its explanation</li>"
-            "<li>Click 'Execute' to run the command or 'Copy' to copy it to clipboard</li>"
+            "<li>The assistant will generate a suitable Linux command or answer your question about files.</li>"
+            "<li>Review the command and its explanation, or the AI's answer.</li>"
+            "<li>Click 'Execute' (if a command is shown) or 'Copy'.</li>"
             "</ol>"
             "<h3>Example requests:</h3>"
             "<ul>"
             "<li>Show disk usage in human-readable format</li>"
+            "<li>Are there any '.log' files here?</li>"
             "<li>Find all PDF files in my home directory</li>"
-            "<li>Check system memory usage</li>"
-            "<li>List all installed packages</li>"
             "</ul>"
             "<p>You can access settings by clicking the gear icon in the top-right corner.</p>"
         )
@@ -232,7 +231,7 @@ class TerminalWidget(QTextEdit):
         self.colors = {
             "system": QColor("#808080"), "user": QColor("#FFFFFF"), "assistant": QColor("#00FF00"),
             "command": QColor("#FFFF00"), "error": QColor("#FF0000"), "success": QColor("#00FF00"),
-            "debug_backend": QColor("#FFA500")
+            "debug_backend": QColor("#FFA500"), "ai_text_answer": QColor("#87CEFA")
         }
     def append_message(self, text, message_type="system"):
         self.moveCursor(QTextCursor.End); cursor = self.textCursor(); char_format = cursor.charFormat()
@@ -246,10 +245,11 @@ class LinuxAIAssistantGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self._theme_applied_once = False
-        self.current_command = ""
+        self.current_command: Optional[str] = None
         self.process: Optional[QProcess] = None
         self.current_exec_process: Optional[QProcess] = None
         self.gui_current_working_dir = os.path.abspath(os.getcwd())
+        self.config: Dict[str, Any] = {}
         self.init_config()
         self.verbose_logging = self.config.get("verbose_logging", True)
         self.explanations_cache: Dict[str, str] = {}
@@ -264,6 +264,30 @@ class LinuxAIAssistantGUI(QMainWindow):
         self.check_api_key()
         if self.config.get("show_instructions", True):
             QTimer.singleShot(200, self.show_instructions)
+
+    def init_config(self):
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        try:
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, 'r') as f:
+                    loaded_config = json.load(f)
+                    self.config = DEFAULT_CONFIG.copy()
+                    self.config.update(loaded_config)
+            else:
+                self.config = DEFAULT_CONFIG.copy()
+        except Exception as e:
+            print(f"Error loading config: {e}. Using default config.", file=sys.stderr)
+            self.config = DEFAULT_CONFIG.copy()
+        for key, value in DEFAULT_CONFIG.items():
+            self.config.setdefault(key, value)
+
+    def save_config(self):
+        try:
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            with open(CONFIG_FILE, 'w') as f:
+                json.dump(self.config, f, indent=2)
+        except Exception as e:
+            print(f"Error saving config: {e}", file=sys.stderr)
 
     def _init_ai_engine_for_gui(self):
         if not _IS_BACKEND_MODE and GeminiIntegration is not None:
@@ -283,21 +307,6 @@ class LinuxAIAssistantGUI(QMainWindow):
                 self.log_message("Gemini API key not set. GUI AI features (real-time analysis) disabled.", "system"); self.ai_engine_for_gui = None
         elif GeminiIntegration is None:
             self.log_message("GeminiIntegration module could not be imported. GUI AI features disabled.", "error", True)
-
-    def init_config(self):
-        os.makedirs(CONFIG_DIR, exist_ok=True)
-        try:
-            if os.path.exists(CONFIG_FILE):
-                with open(CONFIG_FILE, 'r') as f: self.config = {**DEFAULT_CONFIG, **json.load(f)}
-            else: self.config = DEFAULT_CONFIG.copy()
-        except Exception as e: print(f"Error loading config: {e}. Using default.", file=sys.stderr); self.config = DEFAULT_CONFIG.copy()
-        for key, value in DEFAULT_CONFIG.items(): self.config.setdefault(key, value)
-
-    def save_config(self):
-        try:
-            os.makedirs(CONFIG_DIR, exist_ok=True)
-            with open(CONFIG_FILE, 'w') as f: json.dump(self.config, f, indent=2)
-        except Exception as e: print(f"Error saving config: {e}", file=sys.stderr)
 
     def init_ui(self):
         self.setWindowTitle("Linux AI Assistant"); self.setMinimumSize(800, 600)
@@ -327,7 +336,7 @@ class LinuxAIAssistantGUI(QMainWindow):
         m_cmd = self.command_display.contentsMargins(); p_cmd = m_cmd.top() + m_cmd.bottom() + (dm_cmd * 2)
         self.command_display.setMinimumHeight(lh_cmd + p_cmd + 5); self.command_display.setMaximumHeight(int(lh_cmd * 2.5) + p_cmd + 5)
         self.command_display.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred); self.command_display.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        command_layout.addWidget(self.command_display); self.explanation_header_label = QLabel("Explanation:")
+        command_layout.addWidget(self.command_display); self.explanation_header_label = QLabel("Explanation/Answer:")
         self.explanation_header_label.setObjectName("ExplanationHeaderLabel"); command_layout.addWidget(self.explanation_header_label)
         self.explanation_display = QTextEdit(); self.explanation_display.setObjectName("ExplanationDisplay"); self.explanation_display.setReadOnly(True)
         fm_exp = self.explanation_display.fontMetrics(); lh_exp = fm_exp.height(); dm_exp = int(self.explanation_display.document().documentMargin())
@@ -365,7 +374,8 @@ class LinuxAIAssistantGUI(QMainWindow):
             else ("#F0F0F0", "#333333", "#FFFFFF", "#000000", "#CCCCCC", "#E0E0E0", "#D0D0D0", "#50FA7B", "#282A36"))
         self.terminal.colors = {"system": QColor("#B0B0B0" if dark else "#707070"), "user": QColor(term_user_fg),
                                 "assistant": QColor("#66FF66"), "command": QColor("#FFC266"), "error": QColor("#FF6666"),
-                                "success": QColor("#66FF99"), "debug_backend": QColor("#FF8C00" if dark else "#FFA500")}
+                                "success": QColor("#66FF99"), "debug_backend": QColor("#FF8C00" if dark else "#FFA500"),
+                                "ai_text_answer": QColor("#87CEFA" if dark else "#4682B4")}
         prompt_lbl_c, cmd_hdr_c, exp_hdr_c = self.terminal.colors["assistant"].name(), self.terminal.colors["command"].name(), (QColor("#8BE9FD") if dark else QColor("#1AA0D5")).name()
         rt_exp_c = exp_hdr_c; qss = f"""
             QMainWindow, QDialog {{ background-color: {base_bg}; color: {base_fg}; }}
@@ -448,7 +458,7 @@ class LinuxAIAssistantGUI(QMainWindow):
             self.log_message("API key not set. Go to Settings.", "error", True); self.prompt_for_api_key(); return
         self.log_message("Processing query with backend...", "system"); self.process_detailed_query(user_input)
 
-    def handle_stdout(self): # Dla process_query
+    def handle_stdout(self):
         if not self.process: return
         raw_data = self.process.readAllStandardOutput().data().decode().strip()
         if not raw_data: return
@@ -461,18 +471,36 @@ class LinuxAIAssistantGUI(QMainWindow):
                 self.handle_complex_query(last_q); return
             if result.get("error") == "DANGEROUS_REQUEST":
                 self.log_message("AI identified query as dangerous.", "error", True); self.command_widget.hide(); return
-            if result.get("success", False):
-                cmd, expl = result.get("command", "N/A"), result.get("explanation", "N/A")
-                self.current_command_suggested_interaction_input = result.get("suggested_interaction_input")
-                sugg_label = result.get("suggested_button_label")
-                self.command_display.setText(cmd); self.explanation_display.setText(expl)
-                self.command_widget.show(); self.current_command = cmd
-                self.execute_button.setText(sugg_label if sugg_label else "Execute") # Ustawienie etykiety
-                if cmd and expl: self.explanations_cache[cmd] = expl; self.save_explanations_cache()
-            else: self.log_message(f"Backend Error (JSON process_query): {result.get('error', 'Unknown')}", "error", True); self.command_widget.hide()
-        except json.JSONDecodeError: self.log_message(f"Backend (non-JSON STDOUT process_query): {raw_data}", "error", True); self.command_widget.hide()
 
-    def handle_stderr(self): # Dla process_query
+            if result.get("success", False):
+                if result.get("is_text_answer"):
+                    answer_text = result.get("explanation", "AI provided a text answer.")
+                    self.log_message(f"AI Answer: {answer_text}", "ai_text_answer", True)
+                    self.command_display.clear()
+                    self.explanation_display.setText(answer_text)
+                    self.command_widget.show()
+                    self.execute_button.setEnabled(False)
+                    self.current_command = None
+                elif result.get("command"):
+                    cmd, expl = result.get("command", "N/A"), result.get("explanation", "N/A")
+                    self.current_command_suggested_interaction_input = result.get("suggested_interaction_input")
+                    sugg_label = result.get("suggested_button_label")
+                    self.command_display.setText(cmd); self.explanation_display.setText(expl)
+                    self.command_widget.show(); self.current_command = cmd
+                    self.execute_button.setText(sugg_label if sugg_label else "Execute")
+                    self.execute_button.setEnabled(True)
+                    if cmd and expl: self.explanations_cache[cmd] = expl; self.save_explanations_cache()
+                else:
+                    self.log_message("Backend returned success but no command or text answer.", "error", True)
+                    self.command_widget.hide()
+            else:
+                self.log_message(f"Backend Error (JSON process_query): {result.get('error', 'Unknown')}", "error", True)
+                self.command_widget.hide()
+        except json.JSONDecodeError:
+            self.log_message(f"Backend (non-JSON STDOUT process_query): {raw_data}", "error", True)
+            self.command_widget.hide()
+
+    def handle_stderr(self):
         if not self.process: return
         raw_data = self.process.readAllStandardError().data().decode().strip()
         if raw_data: self.log_message(f"Backend STDERR (query processing): {raw_data}", "debug_backend")
@@ -484,13 +512,14 @@ class LinuxAIAssistantGUI(QMainWindow):
         if self.process: self.process.deleteLater(); self.process = None
 
     def execute_command(self):
-        if not self.current_command: return
+        if not self.current_command:
+            self.log_message("No command to execute (it might have been a text answer from AI).", "system", True)
+            return
 
         if self.current_command_suggested_interaction_input:
             self.log_message(f"Polecenie '{self.current_command}' może wymagać interakcji. AI sugeruje odpowiedź: '{self.current_command_suggested_interaction_input}'.\nUruchamianie w nowym oknie terminala...", "system", True)
 
             inner_cmd_for_bash = self.current_command.replace("'", "'\\''")
-            # Używamy `shlex.quote` dla całego polecenia wewnętrznego dla `bash -c`
             bash_command_payload = f"{inner_cmd_for_bash}; echo -e '\\n\\n--- Polecenie zakończone. Naciśnij Enter, aby zamknąć to okno. ---'; read"
 
             term_to_use, args_term = None, []
@@ -507,9 +536,9 @@ class LinuxAIAssistantGUI(QMainWindow):
                 except Exception as e: self.log_message(f"Błąd uruchamiania zewn. terminala: {e}", "error", True)
             else: self.log_message("Nie znaleziono odpowiedniego emulatora terminala (gnome-terminal, konsole, xterm).", "error", True)
 
-            self.command_widget.hide(); self.execute_button.setText("Execute") # Reset etykiety
-            self.current_command_suggested_interaction_input = None; self.current_command = ""
-        else: # Standardowe wykonanie przez backend
+            self.command_widget.hide(); self.execute_button.setText("Execute")
+            self.current_command_suggested_interaction_input = None; self.current_command = None
+        else:
             cmd_to_backend = self.current_command
             if self.current_command.strip().startswith("sudo "):
                 dialog = SudoPasswordDialog(self, self.current_command)
@@ -531,15 +560,15 @@ class LinuxAIAssistantGUI(QMainWindow):
             self.current_exec_process = QProcess(self)
             self.current_exec_process.readyReadStandardOutput.connect(lambda: self.handle_execution_stdout_from_backend(self.current_exec_process))
             self.current_exec_process.readyReadStandardError.connect(lambda: self.handle_execution_stderr_from_backend(self.current_exec_process))
-            self.current_exec_process.finished.connect(lambda ec, es, cmd=self.current_command: self.execution_process_finished_from_backend(ec, es, cmd, self.current_exec_process)) # type: ignore
+            self.current_exec_process.finished.connect(lambda ec, es, cmd=str(self.current_command): self.execution_process_finished_from_backend(ec, es, cmd, self.current_exec_process)) # type: ignore
 
             env = QProcessEnvironment.systemEnvironment()
             env.insert("GOOGLE_API_KEY", self.config["api_keys"]["gemini"])
             env.insert("LAA_BACKEND_MODE", "1"); env.insert("LAA_VERBOSE_LOGGING_EFFECTIVE", "1" if self.verbose_logging else "0")
             self.current_exec_process.setProcessEnvironment(env)
 
-            exec_path, exec_args = (sys.executable, []) if getattr(sys,'frozen',False) else (sys.executable, [os.path.join(os.path.dirname(os.path.abspath(__file__)),"src","backend_cli.py")]) # Poprawka dla ścieżki
-            if not getattr(sys, 'frozen', False) and not os.path.exists(exec_args[0]): # Sprawdzenie dla trybu deweloperskiego
+            exec_path, exec_args = (sys.executable, []) if getattr(sys,'frozen',False) else (sys.executable, [os.path.join(os.path.dirname(os.path.abspath(__file__)),"src","backend_cli.py")])
+            if not getattr(sys, 'frozen', False) and not os.path.exists(exec_args[0]):
                  self.log_message(f"CRITICAL: Dev backend_cli.py not found: {exec_args[0]}", "error", True); return
 
             exec_args.extend(["--query", cmd_to_backend, "--execute", "--json", "--working-dir", self.gui_current_working_dir])
@@ -577,27 +606,38 @@ class LinuxAIAssistantGUI(QMainWindow):
         msg_type = "success" if exit_code == 0 and exit_status == QProcess.NormalExit else "error"
         self.log_message(f"Execution of '{executed_command}' via backend finished {status}.", msg_type, True)
 
-        # Czyść current_command tylko jeśli to było to samo polecenie, które właśnie się zakończyło
-        # Zapobiega to sytuacji, gdy użytkownik szybko wpisze nowe polecenie, a stare jeszcze się wykonuje.
-        if executed_command.strip() == self.current_command.strip() or \
-           (proc == self.current_exec_process and executed_command.strip() == self.current_command.strip()): # Dodatkowe sprawdzenie dla pewności
-            self.current_command = ""
-            self.current_command_suggested_interaction_input = None # Również to resetujemy
-            self.execute_button.setText("Execute") # I etykietę
+        if self.current_command and executed_command.strip() == self.current_command.strip():
+            self.current_command = None
+            self.current_command_suggested_interaction_input = None
+            self.execute_button.setText("Execute")
 
-        if proc and proc == self.current_exec_process: # Upewnij się, że to właściwy proces
+        if proc and proc == self.current_exec_process:
              proc.deleteLater()
              self.current_exec_process = None
 
-
     def copy_command(self):
-        if not self.current_command: return
-        QApplication.clipboard().setText(self.current_command) # type: ignore
-        self.log_message("Command copied to clipboard.", "success", True)
+        clipboard = QApplication.clipboard()
+        text_to_copy = ""
+        log_msg = ""
+
+        if self.current_command:
+            text_to_copy = self.current_command
+            log_msg = "Command copied to clipboard."
+        elif not self.command_widget.isHidden() and self.explanation_display.toPlainText().strip():
+            text_to_copy = self.explanation_display.toPlainText().strip()
+            log_msg = "AI's text answer copied to clipboard."
+
+        if text_to_copy:
+            clipboard.setText(text_to_copy) # type: ignore
+            self.log_message(log_msg, "success", True)
+        else:
+            self.log_message("Nothing to copy.", "system", True)
+
 
     def cancel_command(self):
-        self.command_widget.hide(); self.current_command = ""; self.current_command_suggested_interaction_input = None
+        self.command_widget.hide(); self.current_command = None; self.current_command_suggested_interaction_input = None
         self.execute_button.setText("Execute"); self.log_message("Command cancelled.", "system", True)
+        self.execute_button.setEnabled(True)
 
     def load_explanations_cache(self):
         try:
@@ -615,7 +655,7 @@ class LinuxAIAssistantGUI(QMainWindow):
     def update_realtime_analysis(self):
         txt = self.input_field.text().strip()
         if not txt: self.realtime_explanation.clear(); self.realtime_explanation.setPlaceholderText("Type a command or query..."); return
-        if len(txt) < 4: self.realtime_explanation.setText("Keep typing...");_ = self.explanation_timer and self.explanation_timer.stop(); return
+        if len(txt) < 4: self.realtime_explanation.setText("Keep typing...");_ = self.explanation_timer and self.explanation_timer.stop(); return # type: ignore
         if self.explanation_timer and self.explanation_timer.isActive(): self.explanation_timer.stop()
         if not self.explanation_timer:
             self.explanation_timer = QTimer(self); self.explanation_timer.setSingleShot(True)
@@ -628,26 +668,30 @@ class LinuxAIAssistantGUI(QMainWindow):
         if text_input in self.explanations_cache: self.realtime_explanation.setText(f"Cached: {self.explanations_cache[text_input]}"); return
         self.realtime_explanation.setText("Analyzing input with AI...")
         try:
-            api_res = self.ai_engine_for_gui.analyze_text_input_type(text_input)
-            if api_res.success:
-                tt, expl = api_res.analyzed_text_type, api_res.explanation
-                if tt == "linux_command": self.realtime_explanation.setText(f"Cmd: {expl if expl else 'No specific explanation.'}");_ = expl and setattr(self.explanations_cache, text_input, expl) and self.save_explanations_cache()
+            api_res: Optional[GeminiApiResponse] = self.ai_engine_for_gui.analyze_text_input_type(text_input) # type: ignore
+            if api_res and api_res.success: # type: ignore
+                tt, expl = api_res.analyzed_text_type, api_res.explanation # type: ignore
+                if tt == "linux_command": self.realtime_explanation.setText(f"Cmd: {expl if expl else 'No specific explanation.'}");_ = expl and setattr(self.explanations_cache, text_input, expl) and self.save_explanations_cache() # type: ignore
                 elif tt == "natural_language_query": self.realtime_explanation.setText(f"Query: {expl if expl else 'Seems like a query.'}")
+                elif tt == "question_about_cwd": self.realtime_explanation.setText(f"Question about files: {expl if expl else 'Understood as a question about CWD.'}")
                 elif tt == "error": self.realtime_explanation.setText(f"AI Analysis Error: {expl}")
                 else: self.realtime_explanation.setText("Input Type: Other/Uncertain.")
-            else:
-                err_msg = api_res.error or "Unknown AI error."
+            elif api_res:
+                err_msg = api_res.error or "Unknown AI error." # type: ignore
                 quota_err_msg = "AI API quota exceeded for real-time analysis."
                 if "quota" in err_msg.lower() and ("429" in err_msg or "ResourceExhausted" in err_msg): self.realtime_explanation.setText(quota_err_msg)
                 else: self.realtime_explanation.setText(f"AI Analysis Network Error: {err_msg}")
                 self.log_message(f"Error during real-time text input analysis: {err_msg}", "error", True)
+            else:
+                 self.realtime_explanation.setText("AI Analysis did not return a response.")
         except Exception as e: self.realtime_explanation.setText(f"Exception: {e}"); self.log_message(f"Exception in real-time analysis: {e}", "error", True)
+
 
     def handle_complex_query(self, original_query: str):
         self.log_message(f"AI requested clarification for: \"{original_query}\". Generating questions...", "system", True)
         questions: List[str] = [];
         if self.ai_engine_for_gui:
-            try: questions = self.ai_engine_for_gui.generate_clarification_questions(original_query, {"ID": "linux"}, self.gui_current_working_dir)
+            try: questions = self.ai_engine_for_gui.generate_clarification_questions(original_query, {"ID": "linux"}, self.gui_current_working_dir) # type: ignore
             except Exception as e: self.log_message(f"Error generating clarification questions: {e}", "error", True)
         if not questions: questions = ["Describe your main goal?", "Specific files/dirs/params involved?", "Expected outcome?"]
         dialog = ClarificationDialog(self, original_query, questions)
@@ -689,6 +733,7 @@ class LinuxAIAssistantGUI(QMainWindow):
                 with open(fpath,'w',encoding='utf-8') as f: f.write(self.terminal.toPlainText())
                 self.log_message(f"Log saved to {fpath}", "success", True)
             except Exception as e: self.log_message(f"Error saving log: {e}", "error", True)
+
 
 def main_gui_entry_point():
     app = QApplication(sys.argv)

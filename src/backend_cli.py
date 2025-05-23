@@ -17,7 +17,7 @@ if not (getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')):
     pass
 
 from modules.command_executor import CommandExecutor, DistributionDetector, SecurityValidator # type: ignore
-from modules.gemini_integration import GeminiIntegration # type: ignore
+from modules.gemini_integration import GeminiIntegration, GeminiApiResponse # type: ignore
 
 LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 LOG_FILE = "/tmp/linux_ai_assistant_backend.log"
@@ -79,9 +79,13 @@ class LinuxAIAssistant:
         return "Respond always in English. The command explanation, clarification questions, fix suggestions, and any other text MUST be in English."
 
     def _add_to_chat_history(self, role: str, text_content: str):
+        max_text_len = 1000
+        if len(text_content) > max_text_len:
+            text_content = text_content[:max_text_len] + " ... (skrócono)"
+
         valid_role = role.lower() if role.lower() in ["user", "model"] else "user"
         self.chat_history_for_ai.append({"role": valid_role, "parts": [{"text": text_content}]})
-        max_history_turns = 7
+        max_history_turns = 5
         if len(self.chat_history_for_ai) > max_history_turns * 2:
             self.chat_history_for_ai = self.chat_history_for_ai[-(max_history_turns * 2):]
 
@@ -89,46 +93,108 @@ class LinuxAIAssistant:
         current_dir_for_ai_context = self.command_executor.get_current_working_dir()
         self.logger.info(f"Backend process_query: Query='{query}', CWD for AI context='{current_dir_for_ai_context}'")
 
-        cwd_files_list: List[str] = []
+        cwd_entries_list: List[str] = []
         try:
             if os.path.isdir(current_dir_for_ai_context):
                 all_entries = os.listdir(current_dir_for_ai_context)
-                # Tylko pliki, bez katalogów, można to zmienić
-                cwd_files_list = [entry for entry in all_entries if os.path.isfile(os.path.join(current_dir_for_ai_context, entry))][:100] # Ograniczenie do 100
+                cwd_entries_list = all_entries[:100]
                 if len(all_entries) > 100 :
-                     self.logger.info(f"Backend process_query: Providing first 100 files from CWD ({len(all_entries)} total entries).")
+                     self.logger.info(f"Backend process_query: Providing first 100 entries from CWD ({len(all_entries)} total).")
                 else:
-                    self.logger.info(f"Backend process_query: Providing {len(cwd_files_list)} files from CWD ({len(all_entries)} total entries).")
+                    self.logger.info(f"Backend process_query: Providing {len(cwd_entries_list)} entries from CWD.")
         except Exception as e:
-            self.logger.warning(f"Backend: Nie udało się odczytać plików z CWD ({current_dir_for_ai_context}): {e}")
+            self.logger.warning(f"Backend: Nie udało się odczytać wpisów z CWD ({current_dir_for_ai_context}): {e}")
 
+        # Zawsze dodajemy oryginalne zapytanie użytkownika do historii GŁÓWNEJ sesji
         self._add_to_chat_history("user", query)
+
+        # Pierwsze wywołanie AI
         api_response = self.ai_engine.generate_command_with_explanation(
             user_prompt=query,
             distro_info=self.distro_info,
             working_dir=current_dir_for_ai_context,
-            cwd_file_list=cwd_files_list,
-            history=self.chat_history_for_ai,
+            cwd_file_list=cwd_entries_list,
+            history=self.chat_history_for_ai, # Używamy głównej historii
             language_instruction=self._get_ai_language_instruction()
         )
+
+        if api_response.success and api_response.needs_file_search:
+            self.logger.info(f"AI zażądało przeszukania plików. Wzorzec: '{api_response.file_search_pattern}', Komunikat: '{api_response.file_search_message}'")
+
+            search_pattern = api_response.file_search_pattern if api_response.file_search_pattern else "*"
+            effective_search_cmd_pattern = f"*{search_pattern}*" if '*' not in search_pattern and '?' not in search_pattern and '[' not in search_pattern else search_pattern
+
+            # Dodajemy `\\( -path './git/*' -o -path './.*' \\) -prune -o` aby ignorować ukryte katalogi i .git
+            # oraz `sed 's|^\./||'` aby usunąć `./` z początku ścieżek
+            find_command = f"find . \\( -path './git/*' -o -path './.*' \\) -prune -o -maxdepth 2 -type f -iname {shlex.quote(effective_search_cmd_pattern)} -print | sed 's|^\\./||'"
+
+            self.logger.info(f"Wykonuję polecenie wyszukiwania: {find_command} w {current_dir_for_ai_context}")
+            search_result = self.command_executor.execute(find_command, working_dir_override=current_dir_for_ai_context)
+
+            found_files_list: List[str] = []
+            if search_result.success and search_result.stdout:
+                found_files_list = [f.strip() for f in search_result.stdout.splitlines() if f.strip()]
+                self.logger.info(f"Znaleziono plików ({len(found_files_list)}): {found_files_list[:20]}") # Loguj tylko pierwsze 20
+            else:
+                self.logger.warning(f"Wyszukiwanie plików nie powiodło się lub nic nie znaleziono. Stderr: {search_result.stderr}")
+
+            combined_files_for_ai = list(set(cwd_entries_list + found_files_list))
+
+            search_feedback_to_ai = f"System: Wyniki wyszukiwania dla wzorca '{search_pattern}' w '{current_dir_for_ai_context}' (oraz 1 poziom niżej, ignorując ukryte i .git): "
+            if found_files_list:
+                search_feedback_to_ai += f"Znaleziono: {', '.join(found_files_list[:30])}{'...' if len(found_files_list) > 30 else ''}."
+            else:
+                search_feedback_to_ai += "Nic nie znaleziono."
+
+            # Budujemy tymczasową historię dla drugiego wywołania AI
+            temp_history_for_search_context = self.chat_history_for_ai.copy() # Kopia historii przed dodaniem zapytania
+             # Dodajemy oryginalne zapytanie użytkownika (jeśli nie było jeszcze w temp_history)
+            # if not any(entry.get("role") == "user" and entry.get("parts",[{}])[0].get("text") == query for entry in temp_history_for_search_context):
+            #     temp_history_for_search_context.append({"role": "user", "parts": [{"text": query}]})
+            temp_history_for_search_context.append({"role": "model", "parts": [{"text": search_feedback_to_ai}]})
+
+            self.logger.info("Ponowne wywołanie AI z zaktualizowaną listą plików i informacją o wyszukiwaniu.")
+            api_response = self.ai_engine.generate_command_with_explanation(
+                user_prompt=query,
+                distro_info=self.distro_info,
+                working_dir=current_dir_for_ai_context,
+                cwd_file_list=combined_files_for_ai,
+                history=temp_history_for_search_context, # Używamy historii z wynikiem wyszukiwania
+                language_instruction=self._get_ai_language_instruction()
+            )
+
+        response_to_gui: Dict[str, Any] = {
+            "success": api_response.success,
+            "error": api_response.error,
+            "working_dir": current_dir_for_ai_context,
+            "is_text_answer": api_response.is_text_answer,
+            "command": None, "explanation": None,
+            "suggested_interaction_input": None, "suggested_button_label": None,
+            "needs_file_search": False # To już zostało obsłużone
+        }
+
         if not api_response.success:
-            error_msg = api_response.error or "Nie udało się wygenerować polecenia"
+            error_msg = api_response.error or "Nie udało się przetworzyć zapytania"
             if api_response.error == "CLARIFY_REQUEST": self._add_to_chat_history("model", "System: AI requested clarification.")
             elif api_response.error == "DANGEROUS_REQUEST": self._add_to_chat_history("model", "System: AI identified query as dangerous.")
             elif api_response.error: self._add_to_chat_history("model", f"System: Error from AI - {api_response.error}")
-            return {"success": False, "error": error_msg, "command": None, "explanation": None,
-                    "working_dir": current_dir_for_ai_context, "fix_suggestion": None,
-                    "suggested_interaction_input": None, "suggested_button_label": None}
+            response_to_gui["error"] = error_msg
+        else:
+            if api_response.is_text_answer:
+                response_to_gui["explanation"] = api_response.explanation
+                self._add_to_chat_history("model", f"Odpowiedź tekstowa AI:\n{api_response.explanation}")
+            else:
+                response_to_gui["command"] = api_response.command
+                response_to_gui["explanation"] = api_response.explanation
+                response_to_gui["suggested_interaction_input"] = api_response.suggested_interaction_input
+                response_to_gui["suggested_button_label"] = api_response.suggested_button_label
 
-        ai_model_response_text = f"Polecenie: {api_response.command}\nWYJAŚNIENIE: {api_response.explanation}"
-        if api_response.suggested_interaction_input and api_response.suggested_button_label:
-            ai_model_response_text += f"\nINTERAKCJA_POLECENIE: {api_response.suggested_interaction_input};{api_response.suggested_button_label}"
-        self._add_to_chat_history("model", ai_model_response_text)
+                ai_model_response_text = f"Polecenie: {api_response.command}\nWYJAŚNIENIE: {api_response.explanation}"
+                if api_response.suggested_interaction_input and api_response.suggested_button_label:
+                    ai_model_response_text += f"\nINTERAKCJA_POLECENIE: {api_response.suggested_interaction_input};{api_response.suggested_button_label}"
+                self._add_to_chat_history("model", ai_model_response_text)
 
-        return {"success": True, "command": api_response.command, "explanation": api_response.explanation,
-                "working_dir": current_dir_for_ai_context, "error": None, "fix_suggestion": None, # fix_suggestion może być tu dodane jeśli AI by je zwracało
-                "suggested_interaction_input": api_response.suggested_interaction_input,
-                "suggested_button_label": api_response.suggested_button_label}
+        return response_to_gui
 
     def execute_command(self, command: str, is_interactive_sudo_prompt: bool = False) -> Dict[str, Any]:
         self.logger.info(f"Backend: Preparing to execute: '{command}' (interactive sudo: {is_interactive_sudo_prompt}) in CWD: '{self.command_executor.get_current_working_dir()}'")
@@ -211,33 +277,35 @@ class LinuxAIAssistant:
                     elif result.get("error") == "DANGEROUS_REQUEST": print(f"{Fore.RED}AI zidentyfikowało zapytanie jako niebezpieczne.{Style.RESET_ALL}")
                     else: print(f"{Fore.RED}Błąd: {result.get('error', 'Nieznany błąd')}{Style.RESET_ALL}")
                     continue
-                generated_command = result.get("command")
-                if not generated_command: print(f"{Fore.RED}Błąd: AI nie zwróciło polecenia.{Style.RESET_ALL}"); continue
 
-                print(f"\n{Fore.CYAN}Sugerowane polecenie:{Style.RESET_ALL}\n{Fore.WHITE}{generated_command}{Style.RESET_ALL}")
-                if result.get("explanation"): print(f"\n{Fore.CYAN}Wyjaśnienie:{Style.RESET_ALL}\n{Fore.WHITE}{result['explanation']}{Style.RESET_ALL}")
+                if result.get("is_text_answer"):
+                    print(f"\n{Fore.CYAN}Odpowiedź AI:{Style.RESET_ALL}\n{Fore.WHITE}{result.get('explanation', 'Brak odpowiedzi.')}{Style.RESET_ALL}")
+                elif result.get("command"):
+                    generated_command = result.get("command")
+                    print(f"\n{Fore.CYAN}Sugerowane polecenie:{Style.RESET_ALL}\n{Fore.WHITE}{generated_command}{Style.RESET_ALL}")
+                    if result.get("explanation"): print(f"\n{Fore.CYAN}Wyjaśnienie:{Style.RESET_ALL}\n{Fore.WHITE}{result['explanation']}{Style.RESET_ALL}")
 
-                interaction_prompt = f"\n{Fore.YELLOW}Wykonać? (t/n): {Style.RESET_ALL}"
-                if result.get("suggested_button_label"):
-                    interaction_prompt = f"\n{Fore.YELLOW}{result['suggested_button_label']}? (t/n/a-anuluj): {Style.RESET_ALL}"
+                    interaction_prompt = f"\n{Fore.YELLOW}Wykonać? (t/n): {Style.RESET_ALL}"
+                    if result.get("suggested_button_label"):
+                        interaction_prompt = f"\n{Fore.YELLOW}{result['suggested_button_label']}? (t/n/a-anuluj): {Style.RESET_ALL}"
 
-                execute_input = input(interaction_prompt)
-                if execute_input.lower() in ["t", "tak", "y", "yes"]:
-                    print(f"{Fore.YELLOW}Wykonywanie...{Style.RESET_ALL}")
-                    # W trybie CLI backendu, nie mamy łatwego sposobu na uruchomienie w "zewnętrznym terminalu"
-                    # jeśli AI zasugerowało interakcję. Po prostu wykonujemy.
-                    # Etykieta przycisku jest bardziej dla GUI.
-                    exec_result = self.execute_command(generated_command, is_interactive_sudo_prompt=True)
-                    if exec_result["success"]:
-                        print(f"{Fore.GREEN}Polecenie wykonane.{Style.RESET_ALL}")
-                        if exec_result.get("stdout"):
-                            print(f"\n{Fore.WHITE}{exec_result['stdout'].strip()}{Style.RESET_ALL}")
-                    else:
-                        print(f"{Fore.RED}Błąd wykonania (kod: {exec_result['return_code']}){Style.RESET_ALL}")
-                        if exec_result.get("stderr"):
-                            print(f"\n{Fore.RED}{exec_result['stderr'].strip()}{Style.RESET_ALL}")
-                        if exec_result.get("fix_suggestion"):
-                            print(f"\n{Fore.CYAN}Sugestia AI:{Style.RESET_ALL}\n{Fore.WHITE}{exec_result['fix_suggestion']}{Style.RESET_ALL}")
+                    execute_input = input(interaction_prompt)
+                    if execute_input.lower() in ["t", "tak", "y", "yes"]:
+                        print(f"{Fore.YELLOW}Wykonywanie...{Style.RESET_ALL}")
+                        exec_result = self.execute_command(generated_command, is_interactive_sudo_prompt=True) # type: ignore
+                        if exec_result["success"]:
+                            print(f"{Fore.GREEN}Polecenie wykonane.{Style.RESET_ALL}")
+                            if exec_result.get("stdout"):
+                                print(f"\n{Fore.WHITE}{exec_result['stdout'].strip()}{Style.RESET_ALL}")
+                        else:
+                            print(f"{Fore.RED}Błąd wykonania (kod: {exec_result['return_code']}){Style.RESET_ALL}")
+                            if exec_result.get("stderr"):
+                                print(f"\n{Fore.RED}{exec_result['stderr'].strip()}{Style.RESET_ALL}")
+                            if exec_result.get("fix_suggestion"):
+                                print(f"\n{Fore.CYAN}Sugestia AI:{Style.RESET_ALL}\n{Fore.WHITE}{exec_result['fix_suggestion']}{Style.RESET_ALL}")
+                else:
+                     print(f"{Fore.RED}Błąd: AI nie zwróciło ani polecenia, ani odpowiedzi tekstowej.{Style.RESET_ALL}")
+
             except KeyboardInterrupt: print("\nPrzerwano."); break
             except Exception as e: self.logger.error(f"Nieoczekiwany błąd CLI: {e}", exc_info=True); print(f"{Fore.RED}Krytyczny błąd: {e}{Style.RESET_ALL}")
 
@@ -273,17 +341,22 @@ def main():
                 if final_output.get("success"): print(f"{Fore.GREEN}Wykonano pomyślnie.{Style.RESET_ALL}")
                 else: print(f"{Fore.RED}Błąd wykonania: {final_output.get('stderr') or final_output.get('error')}{Style.RESET_ALL}")
                 if final_output.get("stdout"): print(f"Stdout:\n{final_output.get('stdout')}")
-        else: # --query, ale nie --execute
+        else:
             result_process = assistant.process_query(args.query)
             if args.json:
                 print(json.dumps(result_process))
             else:
                 if result_process.get("success"):
-                    print(f"Sugerowane polecenie: {result_process.get('command')}")
-                    if result_process.get("explanation"): print(f"Wyjaśnienie: {result_process['explanation']}")
-                    if result_process.get("suggested_button_label"):
-                        print(f"Sugestia interakcji (etykieta przycisku): {result_process['suggested_button_label']}")
-                        print(f"Sugerowana odpowiedź tekstowa: {result_process.get('suggested_interaction_input')}")
+                    if result_process.get("is_text_answer"):
+                        print(f"Odpowiedź AI: {result_process.get('explanation')}")
+                    elif result_process.get("command"):
+                        print(f"Sugerowane polecenie: {result_process.get('command')}")
+                        if result_process.get("explanation"): print(f"Wyjaśnienie: {result_process['explanation']}")
+                        if result_process.get("suggested_button_label"):
+                            print(f"Sugestia interakcji (etykieta przycisku): {result_process['suggested_button_label']}")
+                            print(f"Sugerowana odpowiedź tekstowa: {result_process.get('suggested_interaction_input')}")
+                    else:
+                        print(f"Błąd: AI zwróciło sukces, ale bez polecenia/odpowiedzi.")
                 else:
                     if result_process.get("error") == "CLARIFY_REQUEST": print(f"{Fore.YELLOW}AI prosi o doprecyzowanie.{Style.RESET_ALL}")
                     elif result_process.get("error") == "DANGEROUS_REQUEST": print(f"{Fore.RED}AI zidentyfikowało zapytanie jako niebezpieczne.{Style.RESET_ALL}")
