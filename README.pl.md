@@ -6,7 +6,7 @@ Wszechstronny asystent napędzany sztuczną inteligencją, który pomaga generow
 
 Projekt na GitHub: [hyconiek/linux_ai_terminal_assistant](https://github.com/hyconiek/linux_ai_terminal_assistant)
 
-## 🎉 Najnowsze Wydanie: v1.0.2 - AppImage 🎉
+## 🎉 Najnowsze Wydanie: v1.0.3 - AppImage 🎉
 
 Najłatwiejszym sposobem na wypróbowanie **Asystenta AI dla Linuksa (GUI)** jest pobranie naszego najnowszego wydania w formacie AppImage! Pliki AppImage są przenośne i powinny działać na większości nowoczesnych dystrybucji Linuksa bez potrzeby instalacji.
 
