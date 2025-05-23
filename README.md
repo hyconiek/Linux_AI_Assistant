@@ -1,3 +1,4 @@
+      
 # Linux AI Assistant (GUI & CLI)
 
 A versatile AI-powered assistant to help you generate, understand, and execute Linux commands using natural language. This project provides both a Graphical User Interface (GUI) and a Command-Line Interface (CLI), both utilizing Google Gemini.
@@ -6,61 +7,50 @@ A versatile AI-powered assistant to help you generate, understand, and execute L
 
 Find the project on GitHub: [hyconiek/linux_ai_terminal_assistant](https://github.com/hyconiek/linux_ai_terminal_assistant)
 
-## 🎉 Latest Release: v1.0.3 - AppImage 🎉
+## 🎉 Latest Release: v1.0.4 - Enhanced Context and Interaction! 🎉
 ![screenshot](./screenshot.png)
-The easiest way to try the **Linux AI Assistant GUI** is by downloading our latest AppImage release! AppImages are portable and should run on most modern Linux distributions without installation.
+The easiest way to try the **Linux AI Assistant GUI** is by downloading our latest AppImage or standalone executable release! AppImages are portable and should run on most modern Linux distributions without installation.
 
-➡️ **[Download `Linux-AI-Assistant-x86_64.AppImage` (115 MB) from Releases](https://github.com/hyconiek/linux_ai_terminal_assistant/releases/tag/1.0.3)** ⬅️
+➡️ **[Download `Linux-AI-Assistant-x86_64.AppImage` or the `Linux-AI-Assistant-onefile` executable from Releases (v1.0.4)](https://github.com/hyconiek/linux_ai_terminal_assistant/releases/latest)** ⬅️
 
+### What's New in v1.0.4:
+*   **Contextual Awareness of CWD:** The AI now receives a list of files and directories from your current working directory (CWD) to provide more relevant command suggestions and answer questions about your CWD content.
+*   **AI-Powered File Search:** If you ask about files not immediately visible in the initial CWD listing, the AI can request the backend to perform a quick search (`find . -maxdepth 2 ...`) in the CWD and its immediate subdirectories. Results are then fed back to the AI for a more informed response or command.
+*   **Smarter Interaction Suggestions:** The AI can now suggest specific button labels for the GUI if a command is expected to be interactive (e.g., "Install (confirm Y)"). If such an interaction is suggested, the GUI will offer to run the command in an external terminal for direct user input.
+*   **Textual Answers for CWD Questions:** Ask the AI "Are there any snap-related files here?" and it can now respond textually based on the CWD file list, instead of only generating commands.
+*   **Improved Contextual Follow-up:** After discussing files in your CWD, you can refer to them more naturally in subsequent commands (e.g., "rename that snap file").
 
-### How to Run the AppImage:
+### How to Run:
 
-1.  **Download** the `Linux-AI-Assistant-x86_64.AppImage` file from the link above.
-2.  **Make it executable**:
-    Open your terminal, navigate to the directory where you downloaded the file, and run:
-    ```bash
-    chmod +x Linux-AI-Assistant-x86_64.AppImage
-    ```
-3.  **Run the application**:
-    ```bash
-    ./Linux-AI-Assistant-x86_64.AppImage
-    ```
+#### AppImage:
+1.  **Download** the `Linux-AI-Assistant-x86_64.AppImage` file.
+2.  **Make it executable**: `chmod +x Linux-AI-Assistant-x86_64.AppImage`
+3.  **Run**: `./Linux-AI-Assistant-x86_64.AppImage`
     *(Some desktop environments might also allow you to run it by double-clicking.)*
-4.  **API Key**:
-    *   On the first launch, if a Gemini API key is not configured, you will be prompted to enter one.
-    *   You can manage your API key and other settings via "Settings" (File > Settings or the gear icon).
+
+#### Standalone Executable (PyInstaller onefile):
+1.  **Download** the `Linux-AI-Assistant-onefile` (or similar named) executable.
+2.  **Make it executable**: `chmod +x Linux-AI-Assistant-onefile`
+3.  **Run**: `./Linux-AI-Assistant-onefile`
+
+### First Time Setup:
+*   **API Key**: On the first launch, if a Gemini API key is not configured, you will be prompted to enter one. You can get a key from [Google AI Studio](https://aistudio.google.com/).
+*   Manage your API key and other settings via "Settings" (File > Settings or the gear icon).
 
 ### AppImage Notes:
-*   **Size**: Approx. 140 MB, bundling Python and necessary libraries. Future optimizations planned.
+*   **Size**: AppImage bundles Python and necessary libraries. Size may vary per release.
 *   **Desktop Integration**: For menu icons, consider "AppImageLauncher" or manually creating a `.desktop` file.
-*   **First Run**: May be slightly slower as the AppImage sets up.
-*   **Requirements**: 64-bit Linux (glibc 2.35+ recommended), `fuse` package might be needed (`sudo apt install fuse`).
+*   **Requirements**: 64-bit Linux (glibc 2.35+ recommended), `fuse` package might be needed for AppImage (`sudo apt install fuse`).
 
-
-## Using the Packaged Application (Recommended for GUI)
-
-For the easiest way to use the GUI application, download the latest pre-built executable from the [**Releases Section**](https://github.com/hyconiek/linux_ai_terminal_assistant/releases) of this repository.
-
-1.  Download the standalone executable for Linux (e.g., `Linux-AI-Assistant-vX.Y.Z-linux-x86_64` or similar).
-2.  Make it executable (on Linux/macOS):
-    ```bash
-    chmod +x <downloaded_executable_name>
-    ```
-3.  Run the application:
-    ```bash
-    ./<downloaded_executable_name>
-    ```
-4.  **API Key**: On the first launch, or via "Settings", you will be prompted for your Google Gemini API key.
-
-## Features (GUI & Core Logic)
+## Core Features
 
 - **Intuitive GUI/CLI**: Choose your preferred way to interact.
-- **Natural Language Command Generation**: Ask for commands in plain English (powered by Google Gemini).
-- **AI-Powered**: Utilizes Google Gemini for command suggestions and explanations.
-- **Direct Command Execution**: (GUI) Run generated commands directly from the interface.
-- **Copy to Clipboard**: (GUI) Easily copy commands for use elsewhere.
+- **Natural Language to Command**: Ask for commands in plain English (powered by Google Gemini).
+- **AI-Powered**: Utilizes Google Gemini for command suggestions, explanations, and CWD content analysis.
+- **Direct Command Execution**: (GUI) Run generated commands directly or in an external terminal for interactive ones.
+- **Copy to Clipboard**: (GUI) Easily copy commands or AI's textual answers.
 - **API Key Management**: (GUI) Securely store and manage your Google Gemini API key.
-- **Customizable Themes**: (GUI) Supports both Dark (default) and Light modes.
+- **Customizable Themes**: (GUI) Supports Dark (default) and Light modes.
 - **Verbose Logging Toggle**: (GUI) Control the amount of system/debug information displayed.
 - **Cross-Platform Potential**: Built with Python and PyQt5.
 
@@ -73,11 +63,11 @@ For the easiest way to use the GUI application, download the latest pre-built ex
 
 ## Using the Command-Line Interface (CLI)
 
-The core logic of the assistant is also available as a CLI tool, perfect for scripting or quick terminal use. This is the backend used by the GUI.
+The core logic is also available as a CLI tool (`src/backend_cli.py`), used by the GUI.
 
 ### Prerequisites (CLI)
 
-- Python 3.7+ (Python 3.12 recommended for building the GUI).
+- Python 3.7+ (Python 3.11+ recommended).
 - An active Google Gemini API Key.
 
 ### Setup (CLI)
@@ -95,20 +85,13 @@ The core logic of the assistant is also available as a CLI tool, perfect for scr
     ```
 
 3.  **Install dependencies:**
-    Ensure you have a `requirements.txt` file in the root directory. For the CLI backend, it should primarily contain:
-    ```txt
-    google-generativeai>=0.5.0
-    # colorama>=0.4.4 # If your backend_cli.py uses it for colored output
-    # argparse # Standard library, but good to note if extensively used
-    ```
-    Then install:
+    (Ensure `requirements.txt` is up-to-date with `google-generativeai` and `PyQt5` if running GUI from source)
     ```bash
     pip install -r requirements.txt
     ```
-    (For building/running the GUI from source, `PyQt5>=5.15.0` would also be needed in `requirements.txt`).
 
 4.  **Set API Key (CLI):**
-    The CLI backend (`src/backend_cli.py`) expects the `GOOGLE_API_KEY` environment variable.
+    The CLI backend expects the `GOOGLE_API_KEY` environment variable.
     ```bash
     export GOOGLE_API_KEY="YOUR_GEMINI_API_KEY"
     ```
@@ -116,33 +99,41 @@ The core logic of the assistant is also available as a CLI tool, perfect for scr
 
 ### CLI Usage Examples
 
-*(These commands assume you are in the root directory of the cloned repository)*
+*(Run from the root directory of the cloned repository)*
 
 ```bash
-# Run the backend CLI script directly (ensure it's executable or use python3)
-# This is primarily for testing the backend or if you prefer CLI interaction.
-python3 src/backend_cli.py --query "show disk usage in human readable format" --json
+# Backend CLI for command generation/textual answers (interactive mode)
+python3 src/backend_cli.py
 
-python3 src/backend_cli.py --query "list all pdf files in home directory" --json```
-*(Note: The `backend_cli.py` script is designed to be called by the GUI or for specific command generation. It might not have an interactive mode by itself unless you've added one.)*
+# For specific query (JSON output used by GUI)
+python3 src/backend_cli.py --query "are there any text files here?" --json --working-dir "/path/to/your/directory"
 
-## Building the GUI Application from Source
+    
+
+IGNORE_WHEN_COPYING_START
+Use code with caution. Markdown
+IGNORE_WHEN_COPYING_END
+Building the GUI Application from Source
 
 If you want to build the GUI application yourself:
+Prerequisites (Building GUI)
 
-### Prerequisites (Building GUI)
+    All prerequisites for CLI.
 
-- All prerequisites for CLI.
-- PyQt5: `PyQt5>=5.15.0` (should be in your `requirements.txt`).
-- PyInstaller: `pip install pyinstaller`
+    PyQt5: PyQt5>=5.15.0
 
-### Build Steps
+    PyInstaller: pip install pyinstaller
 
-1.  Ensure your project is set up as described in "Setup (CLI)" and all dependencies (including `PyQt5` and `pyinstaller`) are installed in your virtual environment.
-2.  Navigate to the project's root directory (`linux_ai_terminal_assistant`).
-3.  Run PyInstaller (ensure your GUI script is named `linux_ai_assistant_gui.py` and your backend script `src/backend_cli.py`. The `app_icon.png` should also be in the root directory):
-    ```bash
-    pyinstaller --name "Linux AI Assistant" \
+Build Steps
+
+    Ensure your project is set up and dependencies are installed in your virtual environment.
+
+    Navigate to the project's root directory.
+
+    Run PyInstaller. For a one-file executable:
+
+          
+    pyinstaller --name "Linux-AI-Assistant-onefile" \
                 --onefile \
                 --windowed \
                 --add-data "app_icon.png:." \
@@ -160,20 +151,27 @@ If you want to build the GUI application yourself:
                 --hidden-import="proto" \
                 --hidden-import="grpc" \
                 --hidden-import="PIL" \
+                --hidden-import="pkg_resources" \
                 --hidden-import="pkg_resources.py2_warn" \
                 --hidden-import="argparse" \
                 --hidden-import="backend_cli" \
                 linux_ai_assistant_gui.py
-    ```
-4.  The executable will be in the `dist` folder (e.g., `dist/Linux AI Assistant`).
 
-## License
+        
+
+    IGNORE_WHEN_COPYING_START
+
+    Use code with caution. Bash
+    IGNORE_WHEN_COPYING_END
+
+    The executable will be in the dist folder (e.g., dist/Linux-AI-Assistant-onefile).
+    (For AppImage creation, a more complex process involving linuxdeployqt is typically used, often within a Docker container or a Colab notebook configured for AppImage building.)
+
+License
 
 This project is created by Krzysztof Żuchowski.
 Copyright © 2025 Krzysztof Żuchowski. All rights reserved.
 
-Licensed under the [MIT License](LICENSE.md).
-
----
+Licensed under the MIT License.
 
 Made with ❤️ and Python.
