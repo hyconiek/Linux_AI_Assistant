@@ -1,14 +1,14 @@
 [Desktop Entry]
-Version=1.0
+Version=1.0.5
 Name=Linux AI Assistant
 GenericName=AI Command Assistant
 Comment=AI Assistant for Linux Commands
-Exec=/pełna/ścieżka/do/dist/Linux AI Assistant %U
-Icon=/pełna/ścieżka/do/twojej/app_icon.png
+Exec="/opt/Linux AI Assistant/Linux-AI-Assistant-x86_64.AppImage" %U
+Icon=laia_icon.png
 Terminal=false
 Type=Application
 Categories=Utility;Development;System;
 Keywords=AI;Linux;Terminal;Command;Assistant;
 StartupNotify=true
-Name[pl_PL]=Asystent AI dla Linuksa
+Name[pl_PL]=Linux AI Assistant
 Comment[pl_PL]=Asystent AI dla poleceń Linuksa

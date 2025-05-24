@@ -389,7 +389,7 @@ class LinuxAIAssistantGUI(QMainWindow):
 
     def init_ui(self):
         self.setWindowTitle("Linux AI Assistant"); self.setMinimumSize(800, 600)
-        icon_path = os.path.join(getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__))), "app_icon.png")
+        icon_path = os.path.join(getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__))), "laia_icon.png")
         if os.path.exists(icon_path): self.setWindowIcon(QIcon(icon_path))
         else: self.setWindowIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
 
