@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import os
 import sys
 import argparse
@@ -10,7 +7,7 @@ import signal
 import json
 import getpass
 import shlex
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Set
 import locale
 
 if not (getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')):
@@ -73,6 +70,14 @@ class LinuxAIAssistant:
         self.logger.info(f"Backend: Detected distribution: {self.distro_info}")
         self.logger.info(f"Backend: Current working directory after initialization: {self.command_executor.get_current_working_dir()}")
 
+        self.basic_command_prefixes_cli: Set[str] = {
+            "ls", "cd", "pwd", "mkdir", "cp", "mv", "cat", "echo", "clear", "whoami",
+            "df", "du", "free", "sensors", "man", "history", "ping", "ifconfig", "ip",
+            "ssh", "scp", "top", "ps", "kill",
+            "apt", "dnf", "yum", "pacman", "zypper", "sudo"
+        }
+        self.force_ai_for_commands_cli: Set[str] = {"rm"} # Commands that should always go through AI gen
+
     def _get_ai_language_instruction(self) -> str:
         if self.system_language == "pl":
             return "ODPOWIADAJ ZAWSZE W JĘZYKU POLSKIM. Wyjaśnienie polecenia, pytania doprecyzowujące, sugestie naprawcze i wszelkie inne teksty MUSZĄ być po polsku."
@@ -105,72 +110,48 @@ class LinuxAIAssistant:
         except Exception as e:
             self.logger.warning(f"Backend: Nie udało się odczytać wpisów z CWD ({current_dir_for_ai_context}): {e}")
 
-        # Zawsze dodajemy oryginalne zapytanie użytkownika do historii GŁÓWNEJ sesji
         self._add_to_chat_history("user", query)
 
-        # Pierwsze wywołanie AI
         api_response = self.ai_engine.generate_command_with_explanation(
             user_prompt=query,
             distro_info=self.distro_info,
             working_dir=current_dir_for_ai_context,
             cwd_file_list=cwd_entries_list,
-            history=self.chat_history_for_ai, # Używamy głównej historii
+            history=self.chat_history_for_ai,
             language_instruction=self._get_ai_language_instruction()
         )
 
         if api_response.success and api_response.needs_file_search:
             self.logger.info(f"AI zażądało przeszukania plików. Wzorzec: '{api_response.file_search_pattern}', Komunikat: '{api_response.file_search_message}'")
-
             search_pattern = api_response.file_search_pattern if api_response.file_search_pattern else "*"
             effective_search_cmd_pattern = f"*{search_pattern}*" if '*' not in search_pattern and '?' not in search_pattern and '[' not in search_pattern else search_pattern
-
-            # Dodajemy `\\( -path './git/*' -o -path './.*' \\) -prune -o` aby ignorować ukryte katalogi i .git
-            # oraz `sed 's|^\./||'` aby usunąć `./` z początku ścieżek
             find_command = f"find . \\( -path './git/*' -o -path './.*' \\) -prune -o -maxdepth 2 -type f -iname {shlex.quote(effective_search_cmd_pattern)} -print | sed 's|^\\./||'"
-
             self.logger.info(f"Wykonuję polecenie wyszukiwania: {find_command} w {current_dir_for_ai_context}")
             search_result = self.command_executor.execute(find_command, working_dir_override=current_dir_for_ai_context)
-
             found_files_list: List[str] = []
             if search_result.success and search_result.stdout:
                 found_files_list = [f.strip() for f in search_result.stdout.splitlines() if f.strip()]
-                self.logger.info(f"Znaleziono plików ({len(found_files_list)}): {found_files_list[:20]}") # Loguj tylko pierwsze 20
+                self.logger.info(f"Znaleziono plików ({len(found_files_list)}): {found_files_list[:20]}")
             else:
                 self.logger.warning(f"Wyszukiwanie plików nie powiodło się lub nic nie znaleziono. Stderr: {search_result.stderr}")
-
             combined_files_for_ai = list(set(cwd_entries_list + found_files_list))
-
             search_feedback_to_ai = f"System: Wyniki wyszukiwania dla wzorca '{search_pattern}' w '{current_dir_for_ai_context}' (oraz 1 poziom niżej, ignorując ukryte i .git): "
-            if found_files_list:
-                search_feedback_to_ai += f"Znaleziono: {', '.join(found_files_list[:30])}{'...' if len(found_files_list) > 30 else ''}."
-            else:
-                search_feedback_to_ai += "Nic nie znaleziono."
-
-            # Budujemy tymczasową historię dla drugiego wywołania AI
-            temp_history_for_search_context = self.chat_history_for_ai.copy() # Kopia historii przed dodaniem zapytania
-             # Dodajemy oryginalne zapytanie użytkownika (jeśli nie było jeszcze w temp_history)
-            # if not any(entry.get("role") == "user" and entry.get("parts",[{}])[0].get("text") == query for entry in temp_history_for_search_context):
-            #     temp_history_for_search_context.append({"role": "user", "parts": [{"text": query}]})
+            if found_files_list: search_feedback_to_ai += f"Znaleziono: {', '.join(found_files_list[:30])}{'...' if len(found_files_list) > 30 else ''}."
+            else: search_feedback_to_ai += "Nic nie znaleziono."
+            temp_history_for_search_context = self.chat_history_for_ai.copy()
             temp_history_for_search_context.append({"role": "model", "parts": [{"text": search_feedback_to_ai}]})
-
             self.logger.info("Ponowne wywołanie AI z zaktualizowaną listą plików i informacją o wyszukiwaniu.")
             api_response = self.ai_engine.generate_command_with_explanation(
-                user_prompt=query,
-                distro_info=self.distro_info,
-                working_dir=current_dir_for_ai_context,
-                cwd_file_list=combined_files_for_ai,
-                history=temp_history_for_search_context, # Używamy historii z wynikiem wyszukiwania
+                user_prompt=query, distro_info=self.distro_info, working_dir=current_dir_for_ai_context,
+                cwd_file_list=combined_files_for_ai, history=temp_history_for_search_context,
                 language_instruction=self._get_ai_language_instruction()
             )
 
         response_to_gui: Dict[str, Any] = {
-            "success": api_response.success,
-            "error": api_response.error,
-            "working_dir": current_dir_for_ai_context,
-            "is_text_answer": api_response.is_text_answer,
-            "command": None, "explanation": None,
-            "suggested_interaction_input": None, "suggested_button_label": None,
-            "needs_file_search": False # To już zostało obsłużone
+            "success": api_response.success, "error": api_response.error,
+            "working_dir": current_dir_for_ai_context, "is_text_answer": api_response.is_text_answer,
+            "command": None, "explanation": None, "suggested_interaction_input": None,
+            "suggested_button_label": None, "needs_file_search": False
         }
 
         if not api_response.success:
@@ -184,16 +165,13 @@ class LinuxAIAssistant:
                 response_to_gui["explanation"] = api_response.explanation
                 self._add_to_chat_history("model", f"Odpowiedź tekstowa AI:\n{api_response.explanation}")
             else:
-                response_to_gui["command"] = api_response.command
-                response_to_gui["explanation"] = api_response.explanation
+                response_to_gui["command"] = api_response.command; response_to_gui["explanation"] = api_response.explanation
                 response_to_gui["suggested_interaction_input"] = api_response.suggested_interaction_input
                 response_to_gui["suggested_button_label"] = api_response.suggested_button_label
-
                 ai_model_response_text = f"Polecenie: {api_response.command}\nWYJAŚNIENIE: {api_response.explanation}"
                 if api_response.suggested_interaction_input and api_response.suggested_button_label:
                     ai_model_response_text += f"\nINTERAKCJA_POLECENIE: {api_response.suggested_interaction_input};{api_response.suggested_button_label}"
                 self._add_to_chat_history("model", ai_model_response_text)
-
         return response_to_gui
 
     def execute_command(self, command: str, is_interactive_sudo_prompt: bool = False) -> Dict[str, Any]:
@@ -205,7 +183,9 @@ class LinuxAIAssistant:
            is_interactive_sudo_prompt and \
            not (command.strip().startswith("echo ") and "sudo -S" in command):
             print(f"{Fore.YELLOW}Polecenie '{command}' wymaga uprawnień sudo.{Style.RESET_ALL}")
-            print(f"{Fore.RED}OSTRZEŻENIE: Wykonywanie poleceń z sudo może być niebezpieczne.{Style.RESET_ALL}")
+            # No getpass here for non-interactive sudo from GUI, this path is more for CLI direct sudo.
+            # GUI will send pre-filled sudo if password was obtained there.
+            # If is_interactive_sudo_prompt is True, it means CLI mode.
             try:
                 sudo_password = getpass.getpass(prompt=f"{Fore.YELLOW}Podaj hasło sudo dla [{os.environ.get('USER', os.getlogin())}]: {Style.RESET_ALL}")
                 if not sudo_password:
@@ -220,12 +200,6 @@ class LinuxAIAssistant:
 
         self.logger.info(f"Backend: Finally executing: '{command_to_run}' in CWD: '{self.command_executor.get_current_working_dir()}'")
         result = self.command_executor.execute(command_to_run)
-        self.logger.debug(f"--- Backend: RAW CommandExecutor Result for '{original_command_for_log}' (executed as '{command_to_run}') ---")
-        self.logger.debug(f"  Success: {result.success}, RC: {result.return_code}, Time: {result.execution_time:.2f}s")
-        self.logger.debug(f"  Result CWD (from executor): {result.working_dir}")
-        self.logger.debug(f"  Executor CWD after exec: {self.command_executor.get_current_working_dir()}")
-        self.logger.debug(f"  STDOUT: {result.stdout.strip()[:200]}{'...' if len(result.stdout.strip()) > 200 else ''}")
-        self.logger.debug(f"  STDERR: {result.stderr.strip()[:200]}{'...' if len(result.stderr.strip()) > 200 else ''}")
 
         fix_suggestion_text: Optional[str] = None
         if not result.success and (result.stderr or result.return_code != 0):
@@ -245,15 +219,18 @@ class LinuxAIAssistant:
 
         if original_command_for_log.strip().startswith("cd ") and result.success:
             self._add_to_chat_history("model", f"System: Zmieniono katalog roboczy na {result.working_dir}")
-        else:
+        else: # For non-cd commands or failed cd
             output_summary = f"Wynik wykonania '{original_command_for_log}':\nRC: {result.return_code}\n"
             if result.stdout: output_summary += f"STDOUT:\n{result.stdout.strip()}\n"
             if result.stderr: output_summary += f"STDERR:\n{result.stderr.strip()}\n"
             self._add_to_chat_history("model", output_summary.strip())
 
+        # Crucially, ensure the CommandExecutor's CWD is updated for the next CLI prompt if cd was successful.
+        # This is already handled inside self.command_executor.execute()
+
         return {"success": result.success, "stdout": result.stdout, "stderr": result.stderr,
                 "return_code": result.return_code, "execution_time": result.execution_time,
-                "working_dir": result.working_dir,
+                "working_dir": result.working_dir, # This is the CWD after command execution
                 "command": original_command_for_log, "fix_suggestion": fix_suggestion_text}
 
     def interactive_mode(self):
@@ -270,7 +247,41 @@ class LinuxAIAssistant:
                 if query.lower() in ["exit", "quit"]: break
                 if query.lower() == "help": self._show_help(); continue
                 if not query.strip(): continue
-                print(f"{Fore.YELLOW}Przetwarzanie zapytania...{Style.RESET_ALL}")
+
+                command_prefix = query.split(' ', 1)[0].lower()
+                is_basic_sudo_cli = command_prefix == "sudo" and len(query.split()) > 1 and query.split()[1].lower() in self.basic_command_prefixes_cli
+
+                if (command_prefix in self.basic_command_prefixes_cli or is_basic_sudo_cli) and \
+                   command_prefix not in self.force_ai_for_commands_cli:
+                    print(f"{Fore.YELLOW}Wykonywanie podstawowego polecenia bezpośrednio...{Style.RESET_ALL}")
+                    exec_result = self.execute_command(query, is_interactive_sudo_prompt=True)
+
+                    if exec_result["success"]:
+                        print(f"{Fore.GREEN}Polecenie wykonane pomyślnie.{Style.RESET_ALL}")
+                    else:
+                        print(f"{Fore.RED}Błąd wykonania polecenia (kod: {exec_result['return_code']}).{Style.RESET_ALL}")
+
+                    if exec_result.get("stdout"): print(f"\n{Fore.WHITE}{exec_result['stdout'].strip()}{Style.RESET_ALL}")
+                    if exec_result.get("stderr"): print(f"\n{Fore.RED}{exec_result['stderr'].strip()}{Style.RESET_ALL}")
+
+                    if exec_result.get("fix_suggestion"):
+                         print(f"\n{Fore.CYAN}Sugestia AI (naprawa):{Style.RESET_ALL}\n{Fore.WHITE}{exec_result['fix_suggestion']}{Style.RESET_ALL}")
+
+                    # Get AI explanation for the executed basic command
+                    if self.ai_engine:
+                        print(f"{Fore.YELLOW}Pobieranie wyjaśnienia AI dla '{query}'...{Style.RESET_ALL}")
+                        analysis_res = self.ai_engine.analyze_text_input_type(query, language_instruction=self._get_ai_language_instruction())
+                        if analysis_res.success and analysis_res.explanation:
+                            print(f"\n{Fore.CYAN}Wyjaśnienie AI:{Style.RESET_ALL}\n{Fore.WHITE}{analysis_res.explanation}{Style.RESET_ALL}")
+                        elif analysis_res.error:
+                            print(f"{Fore.RED}Błąd pobierania wyjaśnienia AI: {analysis_res.error}{Style.RESET_ALL}")
+                        else:
+                            print(f"{Fore.YELLOW}AI nie dostarczyło wyjaśnienia.{Style.RESET_ALL}")
+                    print() # Extra newline for clarity
+                    continue # Loop for next command
+
+                # If not a basic command or forced to AI, proceed with AI generation
+                print(f"{Fore.YELLOW}Przetwarzanie zapytania przez AI...{Style.RESET_ALL}")
                 result = self.process_query(query)
                 if not result["success"]:
                     if result.get("error") == "CLARIFY_REQUEST": print(f"{Fore.YELLOW}AI prosi o doprecyzowanie. Spróbuj inaczej.{Style.RESET_ALL}")
@@ -285,11 +296,11 @@ class LinuxAIAssistant:
                     print(f"\n{Fore.CYAN}Sugerowane polecenie:{Style.RESET_ALL}\n{Fore.WHITE}{generated_command}{Style.RESET_ALL}")
                     if result.get("explanation"): print(f"\n{Fore.CYAN}Wyjaśnienie:{Style.RESET_ALL}\n{Fore.WHITE}{result['explanation']}{Style.RESET_ALL}")
 
-                    interaction_prompt = f"\n{Fore.YELLOW}Wykonać? (t/n): {Style.RESET_ALL}"
+                    interaction_prompt_cli = f"\n{Fore.YELLOW}Wykonać? (t/n): {Style.RESET_ALL}"
                     if result.get("suggested_button_label"):
-                        interaction_prompt = f"\n{Fore.YELLOW}{result['suggested_button_label']}? (t/n/a-anuluj): {Style.RESET_ALL}"
+                        interaction_prompt_cli = f"\n{Fore.YELLOW}{result['suggested_button_label']}? (t/n/a-anuluj): {Style.RESET_ALL}"
 
-                    execute_input = input(interaction_prompt)
+                    execute_input = input(interaction_prompt_cli)
                     if execute_input.lower() in ["t", "tak", "y", "yes"]:
                         print(f"{Fore.YELLOW}Wykonywanie...{Style.RESET_ALL}")
                         exec_result = self.execute_command(generated_command, is_interactive_sudo_prompt=True) # type: ignore
@@ -305,15 +316,17 @@ class LinuxAIAssistant:
                                 print(f"\n{Fore.CYAN}Sugestia AI:{Style.RESET_ALL}\n{Fore.WHITE}{exec_result['fix_suggestion']}{Style.RESET_ALL}")
                 else:
                      print(f"{Fore.RED}Błąd: AI nie zwróciło ani polecenia, ani odpowiedzi tekstowej.{Style.RESET_ALL}")
-
+                print() # Extra newline for clarity
             except KeyboardInterrupt: print("\nPrzerwano."); break
             except Exception as e: self.logger.error(f"Nieoczekiwany błąd CLI: {e}", exc_info=True); print(f"{Fore.RED}Krytyczny błąd: {e}{Style.RESET_ALL}")
 
     def _show_help(self):
         print(f"\n{Fore.CYAN}=== Pomoc asystenta AI dla systemu Linux (Backend CLI) ==={Style.RESET_ALL}")
         print("Asystent przetwarza zapytania w języku naturalnym i generuje polecenia.")
-        print(f"\n{Fore.CYAN}Przykłady:{Style.RESET_ALL}")
+        print("Podstawowe polecenia Linuksa (np. ls, cd, pwd) są wykonywane bezpośrednio, a następnie AI dostarcza wyjaśnienie.")
+        print(f"\n{Fore.CYAN}Przykłady zapytań do AI:{Style.RESET_ALL}")
         print("- Pokaż wszystkie pliki w katalogu domowym")
+        print("- Zainstaluj firefox")
         print(f"\n{Fore.CYAN}Komendy specjalne:{Style.RESET_ALL}")
         print(f"- {Fore.YELLOW}help{Style.RESET_ALL}: Ta pomoc")
         print(f"- {Fore.YELLOW}exit/quit{Style.RESET_ALL}: Zakończ\n")
@@ -329,23 +342,24 @@ def main():
 
     if args.query:
         assistant.logger.info(f"Backend: Zapytanie z argumentów: '{args.query}', execute: {args.execute}, json: {args.json}, CWD (arg): {args.working_dir}")
-        if args.execute:
+        if args.execute: # This path is mainly for GUI calling backend for direct execution
             command_to_run = args.query
             assistant.logger.info(f"Backend: Tryb --execute dla polecenia: '{command_to_run}'")
+            # is_interactive_sudo_prompt=False because GUI handles password for sudo if needed
             exec_result = assistant.execute_command(command_to_run, is_interactive_sudo_prompt=False)
             final_output = exec_result
             if args.json:
                 print(json.dumps(final_output))
-            else:
+            else: # Should not happen if GUI calls with --json
                 print(f"Polecenie: {final_output.get('command')}")
                 if final_output.get("success"): print(f"{Fore.GREEN}Wykonano pomyślnie.{Style.RESET_ALL}")
                 else: print(f"{Fore.RED}Błąd wykonania: {final_output.get('stderr') or final_output.get('error')}{Style.RESET_ALL}")
                 if final_output.get("stdout"): print(f"Stdout:\n{final_output.get('stdout')}")
-        else:
+        else: # This path is for GUI calling backend for AI processing
             result_process = assistant.process_query(args.query)
             if args.json:
                 print(json.dumps(result_process))
-            else:
+            else: # Should not happen if GUI calls with --json
                 if result_process.get("success"):
                     if result_process.get("is_text_answer"):
                         print(f"Odpowiedź AI: {result_process.get('explanation')}")
@@ -361,7 +375,7 @@ def main():
                     if result_process.get("error") == "CLARIFY_REQUEST": print(f"{Fore.YELLOW}AI prosi o doprecyzowanie.{Style.RESET_ALL}")
                     elif result_process.get("error") == "DANGEROUS_REQUEST": print(f"{Fore.RED}AI zidentyfikowało zapytanie jako niebezpieczne.{Style.RESET_ALL}")
                     else: print(f"Błąd: {result_process.get('error')}")
-    else:
+    else: # Interactive CLI mode
         assistant.interactive_mode()
 
 if __name__ == "__main__":

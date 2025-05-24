@@ -1,4 +1,3 @@
-      
 # Linux AI Assistant (GUI & CLI)
 
 A versatile AI-powered assistant to help you generate, understand, and execute Linux commands using natural language. This project provides both a Graphical User Interface (GUI) and a Command-Line Interface (CLI), both utilizing Google Gemini.
@@ -7,18 +6,20 @@ A versatile AI-powered assistant to help you generate, understand, and execute L
 
 Find the project on GitHub: [hyconiek/linux_ai_terminal_assistant](https://github.com/hyconiek/linux_ai_terminal_assistant)
 
-## 🎉 Latest Release: v1.0.4 - Enhanced Context and Interaction! 🎉
+## 🎉 Latest Release: v1.0.5 - Enhanced Context and Interaction! 🎉
 ![screenshot](./screenshot.png)
 The easiest way to try the **Linux AI Assistant GUI** is by downloading our latest AppImage or standalone executable release! AppImages are portable and should run on most modern Linux distributions without installation.
 
 ➡️ **[Download `Linux-AI-Assistant-x86_64.AppImage` or the `Linux-AI-Assistant-onefile` executable from Releases (v1.0.4)](https://github.com/hyconiek/linux_ai_terminal_assistant/releases/latest)** ⬅️
 
-### What's New in v1.0.4:
-*   **Contextual Awareness of CWD:** The AI now receives a list of files and directories from your current working directory (CWD) to provide more relevant command suggestions and answer questions about your CWD content.
-*   **AI-Powered File Search:** If you ask about files not immediately visible in the initial CWD listing, the AI can request the backend to perform a quick search (`find . -maxdepth 2 ...`) in the CWD and its immediate subdirectories. Results are then fed back to the AI for a more informed response or command.
-*   **Smarter Interaction Suggestions:** The AI can now suggest specific button labels for the GUI if a command is expected to be interactive (e.g., "Install (confirm Y)"). If such an interaction is suggested, the GUI will offer to run the command in an external terminal for direct user input.
-*   **Textual Answers for CWD Questions:** Ask the AI "Are there any snap-related files here?" and it can now respond textually based on the CWD file list, instead of only generating commands.
-*   **Improved Contextual Follow-up:** After discussing files in your CWD, you can refer to them more naturally in subsequent commands (e.g., "rename that snap file").
+### What's New in v1.0.5:
+ *   **Improved Contextual Follow-up:** After discussing files in your CWD, you can refer to them more naturally in subsequent commands (e.g., "rename that snap file").
+ *   **Direct Execution of Basic Commands:** Common Linux commands (e.g., `ls`, `cd`, `pwd`) typed into the GUI are executed directly. The GUI then requests an AI-generated explanation for the executed command.
+ *   **Command History in GUI:** The input field in the GUI now supports command history navigation using the Up and Down arrow keys.
+-*   **Dynamic Prompt in Terminal Widget:** The terminal widget in the GUI now displays the current working directory in its prompt, similar to a standard terminal (e.g., `[/home/user/docs]> `). The input field prompt remains a static `> `.
++*   **Dynamic Prompt in Terminal Widget:** The main terminal output area in the GUI now displays the current working directory in its prompt for user inputs, similar to a standard terminal (e.g., `[/home/user/docs]> your_command`). The actual input field prompt remains a static `> `.
++*   **Stable GUI Layout:** The layout of command/explanation areas has been reordered for better stability, with the input field always at the bottom, followed by the AI output/explanation area, and then the (conditionally visible) panel for generated/executed commands and their action buttons. The command display itself is now single-line.
+ *   **Customizable "Force AI" Commands:** Added a setting to specify commands (e.g., `rm`) that should always be sent to the AI for generation/confirmation, even if they match basic command patterns.
 
 ### How to Run:
 
@@ -47,11 +48,14 @@ The easiest way to try the **Linux AI Assistant GUI** is by downloading our late
 - **Intuitive GUI/CLI**: Choose your preferred way to interact.
 - **Natural Language to Command**: Ask for commands in plain English (powered by Google Gemini).
 - **AI-Powered**: Utilizes Google Gemini for command suggestions, explanations, and CWD content analysis.
-- **Direct Command Execution**: (GUI) Run generated commands directly or in an external terminal for interactive ones.
+- **Direct Command Execution**: (GUI) Run generated commands directly or in an external terminal for interactive ones. Basic commands are executed immediately with post-execution AI explanation.
 - **Copy to Clipboard**: (GUI) Easily copy commands or AI's textual answers.
 - **API Key Management**: (GUI) Securely store and manage your Google Gemini API key.
 - **Customizable Themes**: (GUI) Supports Dark (default) and Light modes.
 - **Verbose Logging Toggle**: (GUI) Control the amount of system/debug information displayed.
+- **Command History**: (GUI) Navigate input history with arrow keys.
+- **Dynamic Prompt in Terminal Widget**: (GUI) Terminal widget prompt shows current working directory.
+- **Customizable "Force AI" Commands**: (GUI) Define commands that always require AI processing.
 - **Cross-Platform Potential**: Built with Python and PyQt5.
 
 ## How to Get a Gemini API Key

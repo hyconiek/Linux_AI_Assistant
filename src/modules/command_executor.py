@@ -120,7 +120,9 @@ class CommandExecutor:
 
     def execute(self, command: str, working_dir_override: Optional[str] = None) -> CommandResult:
         effective_initial_cwd = os.path.abspath(working_dir_override if working_dir_override else self.current_working_dir)
-        self.logger.info(f"!!! TEST EXECUTE: command='{command}', effective_initial_cwd='{effective_initial_cwd}'")
+        # self.logger.info(f"!!! TEST EXECUTE: command='{command}', effective_initial_cwd='{effective_initial_cwd}'")
+        self.logger.debug(f"Executing command='{command}' in effective_cwd='{effective_initial_cwd}'")
+
 
         is_safe, safety_message = SecurityValidator.validate(command)
         if not is_safe:
@@ -128,9 +130,12 @@ class CommandExecutor:
 
         start_time = time.time()
 
-        # Bezpośrednie wykonanie w effective_initial_cwd
+        # Sanitize command if it's a complex cd for Popen to avoid shell errors with complex paths
+        # However, for subprocess.run with shell=True, direct command is usually fine.
+        # For cd, the special handling below is more important.
+
         process = subprocess.run(
-            command, shell=True, cwd=effective_initial_cwd, # BEZPOŚREDNIO TUTAJ
+            command, shell=True, cwd=effective_initial_cwd,
             env=os.environ.copy(), capture_output=True, text=True,
             timeout=self.timeout, check=False, executable='/bin/bash'
         )
@@ -139,20 +144,74 @@ class CommandExecutor:
         stderr = process.stderr[:self.max_output_size] if process.stderr else ""
         rc = process.returncode
 
-        # Dla tego testu, jeśli to było 'cd', spróbujmy na siłę ustawić nowy CWD, jeśli się udało
         new_cwd_for_executor = effective_initial_cwd
-        if command.strip().startswith("cd ") and rc == 0:
-            parts = shlex.split(command.strip())
-            target_dir = "~" if len(parts) == 1 else parts[1]
-            expanded = os.path.expanduser(target_dir)
-            abs_path = os.path.abspath(os.path.join(effective_initial_cwd, expanded) if not os.path.isabs(expanded) else expanded)
-            if os.path.isdir(abs_path):
-                new_cwd_for_executor = abs_path
-                self.current_working_dir = new_cwd_for_executor # AKTUALIZUJ STAN
-                stdout = f"Changed directory to {new_cwd_for_executor}"
+        # Check if the command was 'cd' and if it succeeded
+        # Use regex to be more robust about "cd" and "cd "
+        if re.match(r"^\s*cd(\s+.*|$)", command.strip()) and rc == 0:
+            # If 'cd' was part of a compound command like 'cd /tmp && pwd',
+            # we need to determine the final CWD if the whole compound command succeeded.
+            # The most reliable way for compound commands is to ask the shell.
+            # For simple 'cd <dir>', our existing logic is fine.
+
+            is_simple_cd = "&&" not in command and "|" not in command and ";" not in command
+
+            if is_simple_cd:
+                parts = shlex.split(command.strip()) # shlex.split correctly handles "cd" and "cd /some/path"
+                target_dir_part = "~" # Default to home if just "cd"
+                if len(parts) > 1:
+                    target_dir_part = parts[1]
+
+                expanded_target = os.path.expanduser(target_dir_part)
+
+                # Determine absolute path: if target is absolute, use it; otherwise, join with CWD
+                if os.path.isabs(expanded_target):
+                    prospective_abs_path = expanded_target
+                else:
+                    prospective_abs_path = os.path.join(effective_initial_cwd, expanded_target)
+
+                # Normalize the path (e.g., resolve '..')
+                normalized_abs_path = os.path.normpath(prospective_abs_path)
+
+                if os.path.isdir(normalized_abs_path):
+                    new_cwd_for_executor = normalized_abs_path
+                    self.current_working_dir = new_cwd_for_executor # Update executor's state
+                    # For simple 'cd', stdout might be empty. Provide a confirmation.
+                    if not stdout.strip(): # only if subprocess did not produce output
+                         stdout = f"Changed directory to {new_cwd_for_executor}"
+                else:
+                    # This case should ideally be caught by rc != 0, but as a fallback:
+                    self.logger.warning(f"'cd' command to '{target_dir_part}' resulted in non-directory path '{normalized_abs_path}' despite rc=0. CWD not changed by special 'cd' logic.")
+            else: # Compound command potentially involving 'cd'
+                # The most robust way to get the CWD after a compound command is to ask the shell
+                # by appending '; pwd' to the command IF it succeeded.
+                # We assume 'pwd' is available and safe.
+                # This is run in a new subprocess, so it doesn't affect the current one's Popen CWD.
+                if rc == 0: # Only if the compound command was successful
+                    try:
+                        pwd_check_process = subprocess.run(
+                            f"({command}) && pwd", # Group original command to ensure pwd runs in the same subshell context
+                            shell=True, cwd=effective_initial_cwd,
+                            capture_output=True, text=True, timeout=2, check=True, executable='/bin/bash'
+                        )
+                        final_cwd_from_pwd = pwd_check_process.stdout.strip()
+                        if os.path.isdir(final_cwd_from_pwd):
+                            new_cwd_for_executor = final_cwd_from_pwd
+                            self.current_working_dir = new_cwd_for_executor
+                            self.logger.info(f"Compound command with 'cd' succeeded. New CWD from 'pwd': {new_cwd_for_executor}")
+                        else:
+                            self.logger.warning(f"Compound command with 'cd' succeeded, but 'pwd' check yielded non-dir: {final_cwd_from_pwd}")
+                    except Exception as e_pwd:
+                        self.logger.error(f"Error trying to determine CWD after compound command '{command}': {e_pwd}")
+                        # Fallback to not changing CWD if pwd check fails
+                        new_cwd_for_executor = effective_initial_cwd
+
 
         res = CommandResult((rc == 0), stdout, stderr, rc, command, execution_time, new_cwd_for_executor)
-        self.logger.info(f"!!! TEST EXECUTE RESULT: Success={res.success}, RC={rc}, Result CWD: {res.working_dir}, Executor CWD: {self.current_working_dir}")
+        self.logger.debug(f"Execution Result: Success={res.success}, RC={rc}, Result CWD: {res.working_dir}, Executor CWD after exec: {self.current_working_dir}")
+        if self.current_working_dir != new_cwd_for_executor and rc == 0 and re.match(r"^\s*cd(\s+.*|$)", command.strip()):
+             self.logger.warning(f"Mismatch: Executor CWD is {self.current_working_dir} but result CWD is {new_cwd_for_executor} for a 'cd' command that succeeded. This might indicate an issue in CWD update logic for compound commands if it wasn't updated by '&& pwd'.")
+
+
         return res
 
     def get_current_working_dir(self) -> str:
