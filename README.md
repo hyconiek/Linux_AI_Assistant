@@ -40,8 +40,9 @@ The easiest way to try the **Linux AI Assistant GUI** is by downloading our late
 
 ### AppImage Notes:
 *   **Size**: AppImage bundles Python and necessary libraries. Size may vary per release.
-*   **Desktop Integration**: For menu icons, consider "AppImageLauncher" or manually creating a `.desktop` file.
+*   **Desktop Integration**: For menu icons and easy command-line access, it's recommended to use the provided `install.sh` script (requires sudo). Alternatively, consider "AppImageLauncher" or manually creating a `.desktop` file.
 *   **Requirements**: 64-bit Linux (glibc 2.35+ recommended), `fuse` package might be needed for AppImage (`sudo apt install fuse`).
+
 
 ## Core Features
 
@@ -140,7 +141,7 @@ Build Steps
     pyinstaller --name "Linux-AI-Assistant-onefile" \
                 --onefile \
                 --windowed \
-                --add-data "app_icon.png:." \
+                --add-data "laia_icon.png:." \
                 --add-data "src:src" \
                 --hidden-import="google.generativeai" \
                 --hidden-import="google.ai.generativelanguage" \
@@ -225,9 +226,8 @@ Najłatwiejszym sposobem na wypróbowanie Asystenta AI dla Linuksa (GUI) jest po
 *   Możesz zarządzać swoim kluczem API i innymi ustawieniami poprzez "Ustawienia" (Plik > Ustawienia lub ikona koła zębatego).
 
 ### Uwagi dotyczące AppImage:
-
 *   **Rozmiar**: AppImage zawiera Pythona i niezbędne biblioteki. Rozmiar może się różnić w zależności od wydania.
-*   **Integracja z Pulpitem**: Dla ikon w menu rozważ użycie "AppImageLauncher" lub ręczne utworzenie pliku `.desktop`.
+*   **Integracja z Pulpitem**: Dla ikon w menu i łatwego dostępu z wiersza poleceń, zaleca się użycie dołączonego skryptu `install.sh` (wymaga sudo). Alternatywnie, rozważ użycie "AppImageLauncher" lub ręczne utworzenie pliku `.desktop`.
 *   **Wymagania**: 64-bitowa dystrybucja Linuksa (zalecane glibc 2.35+), może być wymagany pakiet `fuse` dla AppImage (`sudo apt install fuse`).
 
 ## Główne Funkcje
@@ -323,7 +323,7 @@ Jeśli chcesz samodzielnie zbudować aplikację GUI:
     pyinstaller --name "Linux-AI-Assistant-onefile" \
                 --onefile \
                 --windowed \
-                --add-data "app_icon.png:." \
+                --add-data "laia_icon.png:." \
                 --add-data "src:src" \
                 --hidden-import="google.generativeai" \
                 --hidden-import="google.ai.generativelanguage" \

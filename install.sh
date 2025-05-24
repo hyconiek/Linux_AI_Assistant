@@ -62,6 +62,9 @@ fi
 ln -s "$APP_INSTALL_DIR/$APPIMAGE_FILE_BASENAME" "/usr/local/bin/$BIN_NAME" || echo "Ostrzeżenie: Nie można utworzyć dowiązania symbolicznego."
 
 echo "Tworzenie pliku .desktop..."
+# ZMIANA TUTAJ:
+APP_WM_CLASS="LinuxAIAssistant" # Ustawiamy wartość znalezioną przez xprop
+
 DESKTOP_FILE_CONTENT="[Desktop Entry]
 Version=1.0.5
 Name=$APP_NAME_DISPLAY
@@ -74,6 +77,7 @@ Type=Application
 Categories=Utility;Development;System;
 Keywords=AI;Linux;Terminal;Command;Assistant;
 StartupNotify=true
+StartupWMClass=$APP_WM_CLASS
 Name[pl_PL]=$APP_NAME_DISPLAY
 Comment[pl_PL]=Asystent AI dla poleceń Linuksa"
 
@@ -81,6 +85,7 @@ if [ -z "$ICON_DESKTOP_ENTRY_NAME" ]; then
   DESKTOP_FILE_CONTENT=$(echo "$DESKTOP_FILE_CONTENT" | grep -v "^Icon=")
   echo "Informacja: Linia 'Icon=' zostanie pominięta w pliku .desktop, ponieważ ikona nie została znaleziona/skopiowana."
 fi
+# KONIEC ZMIANY
 
 echo "$DESKTOP_FILE_CONTENT" > "/usr/share/applications/$DESKTOP_FILE_NAME" || { echo "Błąd: Nie można utworzyć pliku .desktop."; }
 
