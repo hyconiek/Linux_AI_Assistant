@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -8,6 +7,7 @@ import json
 import re
 import shlex
 import shutil
+import locale # For language detection
 from typing import Dict, Optional, List, Any, Set
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QHBoxLayout, QTextEdit, QLineEdit, QPushButton,
@@ -418,6 +418,7 @@ class LinuxAIAssistantGUI(QMainWindow):
 
         button_layout = QHBoxLayout()
         self.execute_button = QPushButton("Execute"); self.copy_button = QPushButton("Copy"); self.cancel_button = QPushButton("Cancel")
+        self.execute_button.setDefault(True) # Make Execute button default when panel is visible
         button_layout.addWidget(self.execute_button); button_layout.addWidget(self.copy_button); button_layout.addWidget(self.cancel_button)
         generated_command_layout.addLayout(button_layout)
         main_layout.addWidget(self.generated_command_panel)
@@ -464,6 +465,8 @@ class LinuxAIAssistantGUI(QMainWindow):
         toolbar.addWidget(spacer)
         self.settings_button_action = QAction(self.style().standardIcon(QStyle.SP_FileDialogDetailedView), "Settings", self)
         self.settings_button_action.triggered.connect(self.show_settings); toolbar.addAction(self.settings_button_action)
+
+        QTimer.singleShot(0, lambda: self.input_field.setFocus()) # Initial focus
 
     def update_prompt_label_text(self) -> str:
         path_parts = self.gui_current_working_dir.split(os.sep)
@@ -542,10 +545,12 @@ class LinuxAIAssistantGUI(QMainWindow):
             api_key = dialog.get_api_key()
             if api_key: self.config["api_keys"]["gemini"] = api_key; self.save_config(); self.log_message("API key configured.", "success", True); self._init_ai_engine_for_gui()
             else: self.log_message("API key is required for AI features.", "error", True); QTimer.singleShot(1000, self.prompt_for_api_key)
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def show_instructions(self):
         dialog = InstructionsDialog(self, self.config.get("show_instructions", True))
         if dialog.exec_(): self.config["show_instructions"] = dialog.should_show_again(); self.save_config()
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def show_settings(self):
         prev_gemini_key = self.config["api_keys"].get("gemini","")
@@ -579,6 +584,8 @@ class LinuxAIAssistantGUI(QMainWindow):
                 self.log_message(f"Commands to always force AI processing updated: {self.config.get('force_ai_for_commands')}", "system", True)
             if gemini_key_changed or gui_model_changed: self._init_ai_engine_for_gui()
             self.log_message("Settings updated.", "success", True)
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
+
 
     def show_about(self):
         QMessageBox.about(self, "About Linux AI Assistant", "<h3>Linux AI Assistant</h3><p>Version 1.0.5</p><p>Created by: Krzysztof Żuchowski</p>"
@@ -586,6 +593,7 @@ class LinuxAIAssistantGUI(QMainWindow):
                           "<p>AI-powered command generation for Linux.</p><hr><p>Support the project:</p>"
                           "<p><a href='https://www.buymeacoffee.com/krzyzu.83'>Buy me a coffee (krzyzu.83)</a></p>"
                           "<p><a href='https://github.com/hyconiek/linux_ai_terminal_assistant'>Project on GitHub</a></p>")
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def start_processing_animation(self, message: str = "Processing"):
         if self.is_processing_animation_active: return
@@ -617,6 +625,7 @@ class LinuxAIAssistantGUI(QMainWindow):
                 self.ai_output_display.clear()
         self.is_processing_animation_active = False
         self.input_field.setEnabled(True)
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
 
     def process_input(self):
@@ -705,12 +714,15 @@ class LinuxAIAssistantGUI(QMainWindow):
         except json.JSONDecodeError:
             self.log_message(f"Backend (non-JSON STDOUT process_query): {raw_data}", "error", True)
             self.ai_output_display.setText("Error: Received malformed data from backend.")
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
+
 
     def handle_stderr(self):
         self.stop_processing_animation(restore_placeholder=True) # Stop anim if stderr comes first
         if not self.process: return
         raw_data = self.process.readAllStandardError().data().decode().strip()
         if raw_data: self.log_message(f"Backend STDERR (query processing): {raw_data}", "debug_backend")
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def process_finished(self, exit_code: int, exit_status: QProcess.ExitStatus):
         self.stop_processing_animation(restore_placeholder=not self.ai_output_display.toPlainText().strip())
@@ -720,6 +732,7 @@ class LinuxAIAssistantGUI(QMainWindow):
              self.log_message(f"Backend AI query process may have failed (code: {exit_code}).", "error", True)
              self.ai_output_display.setText(f"AI query process failed (code: {exit_code}).")
         if self.process: self.process.deleteLater(); self.process = None
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def execute_basic_command(self, command_str: str):
         self.current_exec_process = QProcess(self)
@@ -745,6 +758,7 @@ class LinuxAIAssistantGUI(QMainWindow):
             self.stop_processing_animation()
             if self.current_exec_process: self.current_exec_process.deleteLater(); self.current_exec_process = None
             self.waiting_for_basic_command_explanation_for = None
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def request_ai_explanation_for_executed_command(self, command_str: str):
         self.start_processing_animation(f"Getting AI explanation for: {command_str}")
@@ -782,6 +796,7 @@ class LinuxAIAssistantGUI(QMainWindow):
             self.execute_button.setEnabled(False); self.execute_button.setText("Executed")
         finally:
             self.stop_processing_animation(restore_placeholder=False)
+            QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
 
     def execute_command(self):
@@ -846,6 +861,7 @@ class LinuxAIAssistantGUI(QMainWindow):
                 self.log_message(f"Error starting backend (AI-gen exec): {self.current_exec_process.errorString()}", "error", True)
                 self.stop_processing_animation()
                 if self.current_exec_process: self.current_exec_process.deleteLater(); self.current_exec_process = None
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def handle_execution_stdout_from_backend(self, proc: Optional[QProcess]):
         # No stop_processing_animation here, wait for finished signal or explanation request
@@ -864,12 +880,14 @@ class LinuxAIAssistantGUI(QMainWindow):
             fix_sugg = res.get("fix_suggestion")
             if fix_sugg: self.log_message(f"\n--- AI Fix Suggestion ---\n{fix_sugg}\n--------------------------", "assistant", True)
         except json.JSONDecodeError: self.log_message(f"Backend Exec (non-JSON STDOUT): {raw_data}", "system", True)
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def handle_execution_stderr_from_backend(self, proc: Optional[QProcess]):
         # No stop_processing_animation here
         if not proc: return
         raw_data = proc.readAllStandardError().data().decode().strip()
         if raw_data: self.log_message(f"Backend Exec STDERR (raw): {raw_data}", "debug_backend")
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def execution_process_finished_from_backend(self, exit_code: int, exit_status: QProcess.ExitStatus, executed_command: str, proc: Optional[QProcess]):
         # Stop general "Executing command..." animation if it was active for this process
@@ -891,6 +909,7 @@ class LinuxAIAssistantGUI(QMainWindow):
 
         if proc and proc == self.current_exec_process:
              proc.deleteLater(); self.current_exec_process = None
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def copy_content(self):
         clipboard = QApplication.clipboard()
@@ -905,6 +924,7 @@ class LinuxAIAssistantGUI(QMainWindow):
 
         if text_to_copy: clipboard.setText(text_to_copy); self.log_message(log_msg, "success", True)
         else: self.log_message("Nothing to copy.", "system", True)
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def cancel_generated_command(self):
         self.generated_command_panel.hide()
@@ -915,6 +935,7 @@ class LinuxAIAssistantGUI(QMainWindow):
         self.execute_button.setText("Execute"); self.execute_button.setEnabled(True)
         self.generated_command_header_label.setText("Generated Command:")
         self.log_message("Command cancelled.", "system", True)
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def load_explanations_cache(self):
         try:
@@ -988,6 +1009,8 @@ class LinuxAIAssistantGUI(QMainWindow):
         except Exception as e:
             if not self.generated_command_panel.isVisible(): self.ai_output_display.setText(f"Exception: {e}")
             self.log_message(f"Exception in real-time analysis: {e}", "error", True)
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
+
 
     def handle_complex_query(self, original_query: str):
         self.log_message(f"AI requested clarification for: \"{original_query}\". Generating questions...", "system", True)
@@ -1014,6 +1037,7 @@ class LinuxAIAssistantGUI(QMainWindow):
             self.log_message("Clarification cancelled.", "system", True)
             self.ai_output_display.setPlaceholderText(self._original_ai_output_placeholder)
             self.ai_output_display.clear()
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
 
     def process_detailed_query(self, detailed_query: str):
@@ -1038,6 +1062,8 @@ class LinuxAIAssistantGUI(QMainWindow):
             self.log_message(f"Error starting backend: {self.process.errorString()}", "error", True)
             self.stop_processing_animation()
             _ = self.process and self.process.deleteLater(); self.process = None
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
+
 
     def start_new_session(self):
         if QMessageBox.question(self,"New Session","This will close current assistant. Sure?", QMessageBox.Yes|QMessageBox.No,QMessageBox.No) == QMessageBox.Yes:
@@ -1047,6 +1073,8 @@ class LinuxAIAssistantGUI(QMainWindow):
                     exec_path, exec_args = (sys.executable, []) if getattr(sys,'frozen',False) else (sys.executable, [os.path.abspath(sys.argv[0])])
                     QProcess.startDetached(exec_path, exec_args); qapp.quit()
             except Exception as e: self.log_message(f"Error starting new session: {e}", "error", True)
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
+
 
     def save_session(self):
         fpath, _ = QFileDialog.getSaveFileName(self,"Save Log",os.path.expanduser("~/laa_session.txt"),"Text (*.txt);;All (*)")
@@ -1055,6 +1083,7 @@ class LinuxAIAssistantGUI(QMainWindow):
                 with open(fpath,'w',encoding='utf-8') as f: f.write(self.terminal.toPlainText())
                 self.log_message(f"Log saved to {fpath}", "success", True)
             except Exception as e: self.log_message(f"Error saving log: {e}", "error", True)
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def eventFilter(self, obj, event):
         if obj is self.input_field and event.type() == QEvent.KeyPress:
