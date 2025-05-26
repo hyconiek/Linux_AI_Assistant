@@ -4,19 +4,26 @@ __pycache__/
 *$py.class
 
 # Virtual environment
+# Jeśli venv jest bezpośrednio w katalogu głównym projektu (NIEZALECANE)
+/bin/
+/lib/
+/include/
+/pyvenv.cfg
+# Poniższe są dla standardowej struktury (zostawiam, na przyszłość)
 venv/
 .venv/
 env/
 ENV/
+
 pip-freeze.txt
-pip-requirements.txt
+pip-requirements.txt # Zazwyczaj requirements.txt JEST wersjonowany, to co generuje pip freeze może być inne
 *.egg-info/
 .installed.cfg
 *.egg
 
 # PyInstaller
-build/
-dist/
+/build/
+/dist/
 *.spec
 
 # IDE / Editor specific
@@ -24,3 +31,19 @@ dist/
 .idea/
 *.swp
 *~
+
+# Docker specific
+Dockerfile.env
+docker-compose.override.yml
+
+# AppImage specific
+*.AppImage
+# *.AppDir/ # Jeśli AppDir jest tworzone w projekcie i nie chcesz go wersjonować
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Log files (ogólne)
+*.log
+*.log.*
