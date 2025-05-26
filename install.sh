@@ -5,7 +5,7 @@
 
 # --- Konfiguracja ---
 APP_NAME_DISPLAY="Linux AI Assistant"
-APPIMAGE_FILE_BASENAME="Linux-AI-Assistant-x86_64.AppImage"
+APPIMAGE_FILE_BASENAME="Linux_AI_Assistant-x86_64.AppImage"
 INSTALL_DIR_BASE="/opt"
 APP_INSTALL_DIR="$INSTALL_DIR_BASE/$APP_NAME_DISPLAY"
 BIN_NAME="laia"

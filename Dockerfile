@@ -14,12 +14,10 @@ RUN apt-get update -qq && \
         python3-apt \
         gnupg \
         dirmngr && \
-    # Sprawdź, czy apt_pkg jest importowalny przez systemowy python3.8
     python3.8 -c "import apt_pkg; print(f'apt_pkg dla Python 3.8 w: {apt_pkg.__file__}')" && \
     rm -rf /var/lib/apt/lists/*
 
 # === WARSTWA 2: Dodanie PPA i instalacja Pythona 3.9 oraz ustawienie go jako domyślny ===
-# add-apt-repository teraz powinno użyć systemowego python3.8 z poprawnym apt_pkg
 RUN echo "Dodawanie PPA deadsnakes..." && \
     add-apt-repository ppa:deadsnakes/ppa -y && \
     apt-get update -qq && \
@@ -34,10 +32,8 @@ RUN echo "Dodawanie PPA deadsnakes..." && \
     update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 20 && \
     update-alternatives --set python3 /usr/bin/python3.9 && \
     echo "Domyślny python3 to teraz: $(python3 --version)" && \
-    # Instalacja pip dla nowo ustawionego domyślnego Pythona 3.9
     echo "Instalowanie pip dla Python 3.9..." && \
     apt-get install -y --no-install-recommends python3-pip && \
-    # Upewnij się, że pip jest dla 3.9
     (python3.9 -m pip --version || (wget https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py && python3.9 /tmp/get-pip.py && rm /tmp/get-pip.py)) && \
     echo "Wersja pip dla python3.9: $(python3.9 -m pip --version)" && \
     rm -rf /var/lib/apt/lists/*
@@ -57,14 +53,16 @@ RUN apt-get update -qq && \
         libwayland-client0 libwayland-cursor0 libwayland-egl1 \
         libxcomposite1 \
         file \
-        rsync && \
+        rsync \
+        appstream \
+        libxml2-utils \
+        lintian && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # === WARSTWA 4: Kopiowanie requirements.txt i instalacja zależności Python w venv ===
 COPY requirements.txt /app/requirements.txt
-# Tworzymy venv używając domyślnego python3 (który jest teraz 3.9)
 RUN python3 -m venv /app/venv && \
     echo "Python w venv: $(/app/venv/bin/python --version)" && \
     /app/venv/bin/python -m pip install --upgrade pip setuptools wheel && \
@@ -75,18 +73,19 @@ RUN python3 -m venv /app/venv && \
 COPY build_appimage_focal.sh /app/build_appimage_focal.sh
 RUN chmod +x /app/build_appimage_focal.sh
 
+# Kopiuj appdir-lint.sh (zakładamy, że jest w tym samym katalogu co Dockerfile)
+COPY appdir-lint.sh /app/appdir-lint.sh
+RUN chmod +x /app/appdir-lint.sh
+
+
 # Kopiuj cały kontekst (kod źródłowy aplikacji)
-# Zakładamy, że Dockerfile jest w głównym katalogu projektu
 COPY . /app/linux_ai_terminal_assistant_project_code/
 
-# Ustaw finalny katalog roboczy i przygotuj strukturę, jeśli skrypt tego oczekuje
-# Skrypt build_appimage_focal.sh powinien być uruchamiany z /app
-# a kod projektu powinien być w /app/linux_ai_terminal_assistant
 RUN mkdir -p /app/linux_ai_terminal_assistant && \
     mv /app/linux_ai_terminal_assistant_project_code/* /app/linux_ai_terminal_assistant/ || true && \
     rm -rf /app/linux_ai_terminal_assistant_project_code && \
     ln -s /app/venv /app/linux_ai_terminal_assistant/venv
 
-WORKDIR /app # Skrypt build_appimage_focal.sh będzie uruchamiany z /app
+WORKDIR /app
 
 CMD ["/app/build_appimage_focal.sh"]

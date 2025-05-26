@@ -1,0 +1,61 @@
+xml
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.github.hyconiek.linux_ai_terminal_assistant.desktop</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Linux AI Assistant</name>
+  <summary>AI-powered assistant for Linux terminal commands</summary>
+  <description>
+    <p>Linux AI Assistant helps you generate, understand, and execute Linux commands using natural language. It leverages Google Gemini to interpret your requests and provide relevant command-line instructions and explanations.</p>
+    <p>Features:</p>
+    <ul>
+      <li>Natural language to command conversion</li>
+      <li>AI-powered explanations for commands</li>
+      <li>Direct execution of commands (with safety checks)</li>
+      <li>Support for dark and light themes</li>
+      <li>Command history</li>
+      <li>Offline support with cached explanations</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">linux-ai-assistant.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main interface of Linux AI Assistant</caption>
+      <image>https://raw.githubusercontent.com/hyconiek/linux_ai_terminal_assistant/main/screenshot.png</image>
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://github.com/hyconiek/linux_ai_terminal_assistant</url>
+  <url type="bugtracker">https://github.com/hyconiek/linux_ai_terminal_assistant/issues</url>
+  <url type="donation">https://www.buymeacoffee.com/krzyzu.83</url>
+  <provides>
+    <binary>LinuxAIAssistant</binary>
+  </provides>
+  <releases>
+    <release version="1.0.5" date="2025-05-24">
+      <description>
+        <p>- Improved Contextual Follow-up.</p>
+        <p>- Direct Execution of Basic Commands with AI explanation.</p>
+        <p>- Command History in GUI.</p>
+        <p>- Dynamic Prompt in Terminal Widget.</p>
+        <p>- Stable GUI Layout.</p>
+        <p>- Customizable "Force AI" Commands.</p>
+        <p>- Offline mode enhancements and cache pre-filling.</p>
+      </description>
+    </release>
+    <release version="1.0.4" date="2025-05-20">
+      <description><p>Initial public release with core AI command generation and GUI.</p></description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1" />
+  <categories>
+    <category>Utility</category>
+    <category>Development</category>
+    <category>System</category>
+  </categories>
+  <icons>
+    <icon type="stock">linux-ai-assistant</icon>
+  </icons>
+  <developer_name>Krzysztof Żuchowski</developer_name>
+  <update_contact>krzysztof.zuchowski83@gmail.com</update_contact>
+</component>
