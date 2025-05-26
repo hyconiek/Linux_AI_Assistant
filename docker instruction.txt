@@ -31,7 +31,7 @@ Krok 2: Budowanie obrazu Docker
 Otwórz terminal w głównym katalogu projektu (tam, gdzie jest `Dockerfile`).
 Wykonaj komendę:
 
-    sudo docker build --no-cache -t laia_image_focal .
+    sudo docker build -t laia_image_focal .
 
 lub, jeśli jesteś pewien, że cache jest aktualny i chcesz przyspieszyć:
 
