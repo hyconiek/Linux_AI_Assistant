@@ -400,7 +400,7 @@ echo "<<< KROK 9: Zakończono."
  # === KROK 10: Budowanie finalnego AppImage ===
  echo ">>> KROK 10: Budowanie finalnego AppImage..."
  cd "${APP_DIR_SCRIPT}" # Powrót do /app
- FINAL_APPIMAGE_NAME_SCRIPT="Linux_AI_Assistant-$(uname -m).AppImage"
+ FINAL_APPIMAGE_NAME_SCRIPT="Linux-AI-Assistant-$(uname -m).AppImage"
  FINAL_APPIMAGE_PATH_IN_APP_DIR_SCRIPT="${APP_DIR_SCRIPT}/${FINAL_APPIMAGE_NAME_SCRIPT}"
  if [ -f "${FINAL_APPIMAGE_PATH_IN_APP_DIR_SCRIPT}" ]; then rm -f "${FINAL_APPIMAGE_PATH_IN_APP_DIR_SCRIPT}"; fi
 
