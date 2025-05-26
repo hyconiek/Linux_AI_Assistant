@@ -1,0 +1,88 @@
+================================================================================
+Instrukcja Budowania AppImage za pomocą Docker
+================================================================================
+
+Wymagania wstępne:
+-------------------
+1. Zainstalowany Docker na Twoim systemie Linux.
+2. Pliki projektu, w tym:
+    *   `Dockerfile` (zgodny z ostatnio działającą wersją, zawierający rsync i libxcomposite1).
+    *   `build_appimage_focal.sh` (ostatnia pełna, działająca wersja).
+    *   `requirements.txt`.
+    *   Kod źródłowy aplikacji (np. `linux_ai_assistant_gui.py`, katalog `src/`, ikona `laia_icon.png`).
+    Wszystkie te pliki powinny znajdować się w jednym katalogu projektu.
+
+Kroki:
+-------
+
+Krok 1: Przygotowanie plików projektu
+--------------------------------------
+Upewnij się, że w głównym katalogu Twojego projektu (np. `~/projekty/linux_ai_assistant/`) znajdują się:
+*   `Dockerfile`
+*   `build_appimage_focal.sh` (upewnij się, że ma uprawnienia do wykonania: `chmod +x build_appimage_focal.sh` w terminalu na Twoim systemie hosta, jeśli jeszcze tego nie zrobiłeś)
+*   `requirements.txt`
+*   `laia_icon.png`
+*   Katalog `src/`
+*   `linux_ai_assistant_gui.py` (lub główny plik GUI)
+*   Wszelkie inne potrzebne pliki.
+
+Krok 2: Budowanie obrazu Docker
+--------------------------------
+Otwórz terminal w głównym katalogu projektu (tam, gdzie jest `Dockerfile`).
+Wykonaj komendę:
+
+    sudo docker build --no-cache -t laia_image_focal .
+
+lub, jeśli jesteś pewien, że cache jest aktualny i chcesz przyspieszyć:
+
+    sudo docker build -t laia_image_focal .
+
+Poczekaj na zakończenie budowania obrazu.
+
+Krok 3: Uruchomienie kontenera Docker w celu zbudowania AppImage
+---------------------------------------------------------------
+Najpierw, jeśli istnieje już kontener o nazwie `laia_build_attempt` z poprzednich prób, usuń go:
+
+    sudo docker rm laia_build_attempt || true
+
+Następnie uruchom kontener:
+
+    sudo docker run -it \
+        --name laia_build_attempt \
+        --cap-add SYS_ADMIN \
+        --device /dev/fuse \
+        --security-opt apparmor:unconfined \
+        laia_image_focal
+
+Obserwuj logi w terminalu. Skrypt `build_appimage_focal.sh` rozpocznie pracę.
+
+Krok 4: Kopiowanie zbudowanego pliku AppImage z kontenera na hosta
+-----------------------------------------------------------------
+Po zakończeniu działania skryptu w kontenerze (kontener się zatrzyma), plik AppImage będzie gotowy.
+W terminalu na Twoim systemie hosta wykonaj:
+
+    sudo docker cp laia_build_attempt:/app/linux_ai_terminal_assistant/Linux_AI_Assistant-x86_64.AppImage ./
+
+(Zakładając, że nazwa pliku AppImage to `Linux_AI_Assistant-x86_64.AppImage` i chcesz go skopiować do bieżącego katalogu).
+
+Krok 5: Nadanie uprawnień do wykonania i testowanie AppImage (opcjonalnie)
+--------------------------------------------------------------------------
+Po skopiowaniu pliku `.AppImage` na swój system, nadaj mu uprawnienia do wykonania:
+
+    chmod +x ./Linux_AI_Assistant-x86_64.AppImage
+
+Teraz możesz spróbować uruchomić aplikację:
+
+    ./Linux_AI_Assistant-x86_64.AppImage
+
+Krok 6: Czyszczenie (opcjonalnie)
+----------------------------------
+Aby usunąć zatrzymany kontener:
+
+    sudo docker rm laia_build_attempt
+
+Aby usunąć obraz Docker (jeśli nie będzie już potrzebny):
+
+    sudo docker rmi laia_image_focal
+
+================================================================================
