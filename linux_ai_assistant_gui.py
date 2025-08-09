@@ -11,6 +11,7 @@ import locale
 import socket
 import subprocess
 import traceback # Upewnij się, że jest
+import time
 from typing import Dict, Optional, List, Any, Set
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QHBoxLayout, QTextEdit, QLineEdit, QPushButton,
@@ -19,7 +20,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QDialogButtonBox, QFormLayout, QGroupBox, QSizePolicy,
                             QSpacerItem)
 from PyQt5.QtGui import QFont, QIcon, QTextCursor, QColor, QPalette, QPixmap
-from PyQt5.QtCore import Qt, QProcess, QSettings, QSize, pyqtSignal, QTimer, QProcessEnvironment, QEvent
+from PyQt5.QtCore import Qt, QProcess, QSettings, QSize, pyqtSignal, QTimer, QProcessEnvironment, QEvent, QTranslator, QCoreApplication
 
 
 # --- Constants for Pre-filled Cache ---
@@ -127,10 +128,19 @@ EXPLANATIONS_CACHE_FILE = os.path.join(CONFIG_DIR, "explanations_cache.json")
 COMMAND_HISTORY_FILE = os.path.join(CONFIG_DIR, "command_history.json")
 
 DEFAULT_CONFIG = {
-    "api_keys": {"gemini": "", "openai": "", "anthropic": ""},
-    "show_instructions": True, "theme": "dark", "max_history": 100,
-    "verbose_logging": True, "gui_model_name": 'gemini-1.5-flash-latest',
-    "force_ai_for_commands": ["rm", "top", "htop", "nano", "vim", "less", "man"]
+    "api_keys": {"gemini": ""},
+    "gui_model_name": "gemini-2.5-flash-preview-05-20",
+    "verbose_logging": True,
+    "max_history": 50,
+    "show_instructions": True,
+    "theme": "dark",
+    "force_ai_for_commands": ["rm"],
+    # Optymalizacja AI
+    "realtime_analysis": True,
+    "ai_request_cooldown": 2.0,
+    "realtime_analysis_delay": 3.0,
+    "enable_ai_caching": True,
+    "max_cache_size": 1000
 }
 
 class ApiKeyDialog(QDialog):
@@ -449,6 +459,16 @@ class LinuxAIAssistantGUI(QMainWindow):
         self.init_config()
         self.verbose_logging = self.config.get("verbose_logging", True) # Ustaw zaraz po wczytaniu configu
 
+        # Optymalizacja wywołań AI - musi być przed init_ui()
+        self.ai_request_queue: List[str] = []
+        self.ai_batch_timer: Optional[QTimer] = None
+        self.last_ai_request_time = 0
+        self.ai_request_cooldown = self.config.get("ai_request_cooldown", 2.0)  # Sekundy między wywołaniami AI
+        self.realtime_analysis_enabled = self.config.get("realtime_analysis", True)
+        self.realtime_analysis_delay = self.config.get("realtime_analysis_delay", 3.0)
+        self.enable_ai_caching = self.config.get("enable_ai_caching", True)
+        self.max_cache_size = self.config.get("max_cache_size", 1000)
+
         # 2. Inicjalizacja UI (tworzy self.terminal i inne widgety)
         # Musi być przed log_message, load_input_history, load_explanations_cache, _init_ai_engine_for_gui
         self.init_ui() # PRZENIESIONE WCZEŚNIEJ
@@ -489,6 +509,19 @@ class LinuxAIAssistantGUI(QMainWindow):
         self._init_ai_engine_for_gui() # To też używa log_message
         self.apply_theme() # apply_theme używa log_message, więc musi być po init_ui
         self.check_api_key() # To może wywołać prompt_for_api_key, które używa log_message
+
+        # Loguj wykryty język systemu
+        try:
+            lang_code, _ = locale.getdefaultlocale()
+            system_language = "en"
+            if lang_code:
+                if '_' in lang_code:
+                    system_language = lang_code.split('_')[0]
+                else:
+                    system_language = lang_code
+            self.log_message(f"System language detected: {system_language} (locale: {lang_code})", "system", True)
+        except Exception as e:
+            self.log_message(f"Could not detect system language: {e}", "system", True)
 
         if self.config.get("show_instructions", True):
             QTimer.singleShot(200, self.show_instructions) # show_instructions to dialog, nie używa log_message
@@ -556,18 +589,46 @@ class LinuxAIAssistantGUI(QMainWindow):
             print(f"Error saving config: {e}", file=sys.stderr)
 
     def _get_gui_ai_language_instruction(self) -> str:
+        """Zwraca instrukcję językową na podstawie języka systemu"""
         try:
+            # Pobierz język systemu
             lang_code, _ = locale.getdefaultlocale()
-            system_language = "en"
-            if lang_code and '_' in lang_code: system_language = lang_code.split('_')[0]
-            elif lang_code: system_language = lang_code
-
-            if system_language == "pl":
-                return "ODPOWIADAJ ZAWSZE W JĘZYKU POLSKIM. Wyjaśnienie polecenia, pytania doprecyzowujące, sugestie naprawcze i wszelkie inne teksty MUSZĄ być po polsku."
-            elif system_language == "cs":
-                return "ODPOVÍDEJ VŽDY ČESKY. Vysvětlení příkazu, doplňující otázky, návrhy oprav a veškeré další texty MUSÍ být v češtině."
-            return "Respond always in English. The command explanation, clarification questions, fix suggestions, and any other text MUST be in English."
-        except Exception:
+            system_language = "en"  # domyślny
+            
+            if lang_code:
+                if '_' in lang_code:
+                    system_language = lang_code.split('_')[0]
+                else:
+                    system_language = lang_code
+            
+            # Mapowanie języków na instrukcje
+            language_instructions = {
+                "pl": "ODPOWIADAJ ZAWSZE W JĘZYKU POLSKIM. Wyjaśnienie polecenia, pytania doprecyzowujące, sugestie naprawcze i wszelkie inne teksty MUSZĄ być po polsku.",
+                "cs": "ODPOVÍDEJ VŽDY ČESKY. Vysvětlení příkazu, doplňující otázky, návrhy oprav a veškeré další texty MUSÍ být v češtině.",
+                "sk": "ODPOVÍDAJ VŽDY SLOVENSKY. Vysvetlenie príkazu, doplňujúce otázky, návrhy oprav a všetky ďalšie texty MUSIA byť v slovenčine.",
+                "de": "ANTWORTE IMMER AUF DEUTSCH. Die Befehlsbeschreibung, Klärungsfragen, Fehlerbehebungsvorschläge und alle anderen Texte MÜSSEN auf Deutsch sein.",
+                "fr": "RÉPONDEZ TOUJOURS EN FRANÇAIS. L'explication de la commande, les questions de clarification, les suggestions de correction et tous les autres textes DOIVENT être en français.",
+                "es": "RESPONDE SIEMPRE EN ESPAÑOL. La explicación del comando, las preguntas de aclaración, las sugerencias de corrección y cualquier otro texto DEBE estar en español.",
+                "it": "RISPOSTA SEMPRE IN ITALIANO. La spiegazione del comando, le domande di chiarimento, i suggerimenti di correzione e qualsiasi altro testo DEVONO essere in italiano.",
+                "ru": "ОТВЕЧАЙ ВСЕГДА НА РУССКОМ ЯЗЫКЕ. Объяснение команды, уточняющие вопросы, предложения по исправлению и любой другой текст ДОЛЖНЫ быть на русском языке.",
+                "uk": "ВІДПОВІДАЙ ЗАВЖДИ УКРАЇНСЬКОЮ МОВОЮ. Пояснення команди, уточнюючі питання, пропозиції щодо виправлення та будь-який інший текст ПОВИННІ бути українською мовою.",
+                "ja": "常に日本語で答えてください。コマンドの説明、明確化の質問、修正提案、その他のすべてのテキストは日本語である必要があります。",
+                "ko": "항상 한국어로 답변하세요. 명령어 설명, 명확화 질문, 수정 제안 및 기타 모든 텍스트는 한국어여야 합니다.",
+                "zh": "始终用中文回答。命令说明、澄清问题、修复建议和任何其他文本必须使用中文。",
+                "ar": "أجب دائمًا باللغة العربية. شرح الأمر والأسئلة التوضيحية واقتراحات الإصلاح وأي نص آخر يجب أن يكون باللغة العربية.",
+                "hi": "हमेशा हिंदी में जवाब दें। कमांड की व्याख्या, स्पष्टीकरण प्रश्न, सुधार सुझाव और कोई भी अन्य पाठ हिंदी में होना चाहिए।",
+                "tr": "HER ZAMAN TÜRKÇE YANITLAYIN. Komut açıklaması, netleştirme soruları, düzeltme önerileri ve diğer tüm metinler TÜRKÇE olmalıdır.",
+                "vi": "LUÔN TRẢ LỜI BẰNG TIẾNG VIỆT. Giải thích lệnh, câu hỏi làm rõ, gợi ý sửa lỗi và bất kỳ văn bản nào khác PHẢI bằng tiếng Việt.",
+                "th": "ตอบกลับเป็นภาษาไทยเสมอ คำอธิบายคำสั่ง คำถามเพื่อความชัดเจน ข้อเสนอแนะในการแก้ไข และข้อความอื่นๆ ต้องเป็นภาษาไทย",
+                "id": "SELALU JAWAB DALAM BAHASA INDONESIA. Penjelasan perintah, pertanyaan klarifikasi, saran perbaikan, dan teks lainnya HARUS dalam bahasa Indonesia."
+            }
+            
+            # Zwróć instrukcję dla wykrytego języka lub angielski jako domyślny
+            return language_instructions.get(system_language.lower(), 
+                "Respond always in English. The command explanation, clarification questions, fix suggestions, and any other text MUST be in English.")
+                
+        except Exception as e:
+            # W przypadku błędu zwróć angielski jako fallback
             return "Respond always in English. The command explanation, clarification questions, fix suggestions, and any other text MUST be in English."
 
     def _init_ai_engine_for_gui(self):
@@ -603,29 +664,55 @@ class LinuxAIAssistantGUI(QMainWindow):
             self.ai_engine_for_gui = None
 
     def init_ui(self):
-        self.setWindowTitle("Linux AI Assistant"); self.setMinimumSize(800, 600)
+        self.setWindowTitle("Linux AI Assistant")
+        self.setMinimumSize(800, 600)
+        
+        # Ustaw ikonę
         icon_path = os.path.join(getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__))), "laia_icon.png")
-        if os.path.exists(icon_path): self.setWindowIcon(QIcon(icon_path))
-        else: self.setWindowIcon(QApplication.style().standardIcon(QStyle.SP_ComputerIcon))
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+        else:
+            self.setWindowIcon(QApplication.style().standardIcon(QStyle.SP_ComputerIcon))
 
-        central_widget = QWidget(); self.setCentralWidget(central_widget)
+        # Utwórz główny widget i layout
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
-        self.terminal = TerminalWidget(); main_layout.addWidget(self.terminal, 1)
-        input_layout = QHBoxLayout(); self.prompt_label = QLabel("> ")
-        self.prompt_label.setObjectName("PromptLabel")
-        input_layout.addWidget(self.prompt_label); self.input_field = QLineEdit(); self.input_field.setObjectName("InputField")
-        self.input_field.returnPressed.connect(self.process_input); self.input_field.textChanged.connect(self.update_realtime_analysis)
-        self.input_field.installEventFilter(self)
-        input_layout.addWidget(self.input_field);
+        
+        # Utwórz główne komponenty
+        self._create_main_layout(main_layout)
+        
+        # Utwórz menu i toolbar
+        self._create_menubar()
+        self._create_toolbar()
+        
+        # Utwórz status bar
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.status_bar.showMessage("Initializing...", 2000)
+        
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
+
+    def _create_main_layout(self, main_layout):
+        """Tworzy główny layout z terminalem, AI output i panelami"""
+        # Terminal
+        self.terminal = TerminalWidget()
+        main_layout.addWidget(self.terminal, 1)
+        
+        # AI Output
         self.ai_output_header_label = QLabel("AI Analysis / Explanation / Answer:")
         self.ai_output_header_label.setObjectName("AIOutputHeaderLabel")
         main_layout.addWidget(self.ai_output_header_label)
+        
         self.ai_output_display = QTextEdit()
         self.ai_output_display.setObjectName("AIOutputDisplay")
         self.ai_output_display.setReadOnly(True)
         self._original_ai_output_placeholder = "Type a command or query... Analysis or explanation will appear here."
         self.ai_output_display.setPlaceholderText(self._original_ai_output_placeholder)
-        fm_aio = self.ai_output_display.fontMetrics(); lh_aio = fm_aio.height()
+        
+        # Ustaw rozmiar AI output
+        fm_aio = self.ai_output_display.fontMetrics()
+        lh_aio = fm_aio.height()
         dm_aio = int(self.ai_output_display.document().documentMargin() * 2)
         m_aio = self.ai_output_display.contentsMargins()
         p_aio = m_aio.top() + m_aio.bottom() + dm_aio
@@ -634,17 +721,31 @@ class LinuxAIAssistantGUI(QMainWindow):
         self.ai_output_display.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.ai_output_display.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         main_layout.addWidget(self.ai_output_display)
+        
+        # Panel wygenerowanego polecenia
+        self._create_generated_command_panel(main_layout)
+        
+        # Input layout
+        self._create_input_layout(main_layout)
+
+    def _create_generated_command_panel(self, main_layout):
+        """Tworzy panel wygenerowanego polecenia"""
         self.generated_command_panel = QWidget()
         generated_command_layout = QVBoxLayout(self.generated_command_panel)
         generated_command_layout.setContentsMargins(0, 5, 0, 0)
+        
         self.generated_command_header_label = QLabel("Generated/Executed Command:")
         self.generated_command_header_label.setObjectName("GeneratedCommandHeaderLabel")
         generated_command_layout.addWidget(self.generated_command_header_label)
+        
         self.generated_command_display = QTextEdit()
         self.generated_command_display.setObjectName("GeneratedCommandDisplay")
         self.generated_command_display.setReadOnly(True)
         self.generated_command_display.setLineWrapMode(QTextEdit.NoWrap)
-        fm_cmd = self.generated_command_display.fontMetrics(); lh_cmd = fm_cmd.height()
+        
+        # Ustaw rozmiar command display
+        fm_cmd = self.generated_command_display.fontMetrics()
+        lh_cmd = fm_cmd.height()
         dm_cmd = int(self.generated_command_display.document().documentMargin() * 2)
         m_cmd = self.generated_command_display.contentsMargins()
         p_cmd = m_cmd.top() + m_cmd.bottom() + dm_cmd
@@ -652,46 +753,138 @@ class LinuxAIAssistantGUI(QMainWindow):
         self.generated_command_display.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.generated_command_display.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         generated_command_layout.addWidget(self.generated_command_display)
+        
+        # Przyciski
         button_layout = QHBoxLayout()
-        self.execute_button = QPushButton("Execute"); self.copy_button = QPushButton("Copy"); self.cancel_button = QPushButton("Cancel")
+        self.execute_button = QPushButton(self.tr("Execute"))
+        self.copy_button = QPushButton(self.tr("Copy"))
+        self.cancel_button = QPushButton(self.tr("Cancel"))
         self.execute_button.setDefault(True)
-        button_layout.addWidget(self.execute_button); button_layout.addWidget(self.copy_button)
-        # Zmiana połączenia dla cancel_button
+        
+        button_layout.addWidget(self.execute_button)
+        button_layout.addWidget(self.copy_button)
         self.cancel_button.clicked.connect(self.handle_cancel_or_stop_button)
         button_layout.addWidget(self.cancel_button)
+        
         generated_command_layout.addLayout(button_layout)
         main_layout.addWidget(self.generated_command_panel)
         self.generated_command_panel.hide()
-        main_layout.addLayout(input_layout)
-        self.execute_button.clicked.connect(self.execute_command) # Ta linia powodowała błąd, teraz execute_command powinno istnieć
+        
+        # Połączenia sygnałów
+        self.execute_button.clicked.connect(self.execute_command)
         self.copy_button.clicked.connect(self.copy_content)
-        # self.cancel_button.clicked.connect(self.cancel_generated_command) # Zmienione na handle_cancel_or_stop_button
-        menubar = self.menuBar(); file_menu = menubar.addMenu("File")
-        new_session_action = QAction(QApplication.style().standardIcon(QStyle.SP_ToolBarHorizontalExtensionButton), "New Session", self)
-        new_session_action.setShortcut("Ctrl+N"); new_session_action.triggered.connect(self.start_new_session)
+
+    def _create_input_layout(self, main_layout):
+        """Tworzy layout z polem input"""
+        input_layout = QHBoxLayout()
+        
+        self.prompt_label = QLabel("> ")
+        self.prompt_label.setObjectName("PromptLabel")
+        input_layout.addWidget(self.prompt_label)
+        
+        self.input_field = QLineEdit()
+        self.input_field.setObjectName("InputField")
+        self.input_field.returnPressed.connect(self.process_input)
+        self.input_field.textChanged.connect(self.update_realtime_analysis)
+        self.input_field.installEventFilter(self)
+        input_layout.addWidget(self.input_field)
+        
+        main_layout.addLayout(input_layout)
+
+    def _create_menubar(self):
+        """Tworzy menu aplikacji"""
+        menubar = self.menuBar()
+        
+        # Menu File
+        file_menu = menubar.addMenu(self.tr("File"))
+        
+        new_session_action = QAction(QApplication.style().standardIcon(QStyle.SP_ToolBarHorizontalExtensionButton), self.tr("New Session"), self)
+        new_session_action.setShortcut("Ctrl+N")
+        new_session_action.triggered.connect(self.start_new_session)
         file_menu.addAction(new_session_action)
-        file_menu.addAction(QAction("Save Session Log", self, shortcut="Ctrl+S", triggered=self.save_session))
+        
+        file_menu.addAction(QAction(self.tr("Save Session Log"), self, shortcut="Ctrl+S", triggered=self.save_session))
         file_menu.addSeparator()
-        settings_action_menu = QAction(QApplication.style().standardIcon(QStyle.SP_FileDialogDetailedView), "Settings", self)
-        settings_action_menu.setShortcut("Ctrl+,"); settings_action_menu.triggered.connect(self.show_settings)
+        
+        settings_action_menu = QAction(QApplication.style().standardIcon(QStyle.SP_FileDialogDetailedView), self.tr("Settings"), self)
+        settings_action_menu.setShortcut("Ctrl+,")
+        settings_action_menu.triggered.connect(self.show_settings)
         file_menu.addAction(settings_action_menu)
-        file_menu.addAction(QAction("Instructions", self, triggered=self.show_instructions))
-        file_menu.addSeparator(); file_menu.addAction(QAction("Exit", self, shortcut="Ctrl+Q", triggered=self.close))
-        help_menu = menubar.addMenu("Help"); help_menu.addAction(QAction("About", self, triggered=self.show_about))
-        toolbar = self.addToolBar("Toolbar"); toolbar.setMovable(False); toolbar.setFloatable(False)
+        
+        file_menu.addAction(QAction(self.tr("Instructions"), self, triggered=self.show_instructions))
+        file_menu.addSeparator()
+        file_menu.addAction(QAction(self.tr("Exit"), self, shortcut="Ctrl+Q", triggered=self.close))
+        
+        # Menu Help
+        help_menu = menubar.addMenu(self.tr("Help"))
+        help_menu.addAction(QAction(self.tr("About"), self, triggered=self.show_about))
+
+        # Settings menu
+        settings_menu = menubar.addMenu(self.tr("Settings"))
+        
+        # AI Optimization submenu
+        ai_optimization_menu = settings_menu.addMenu(self.tr("AI Optimization"))
+        
+        # Real-time analysis toggle
+        realtime_action = QAction(self.tr("Enable Real-time Analysis"), self)
+        realtime_action.setCheckable(True)
+        realtime_action.setChecked(self.realtime_analysis_enabled)
+        realtime_action.triggered.connect(self.toggle_realtime_analysis_from_menu)
+        ai_optimization_menu.addAction(realtime_action)
+        
+        # AI caching toggle
+        caching_action = QAction(self.tr("Enable AI Caching"), self)
+        caching_action.setCheckable(True)
+        caching_action.setChecked(self.enable_ai_caching)
+        caching_action.triggered.connect(self.toggle_ai_caching)
+        ai_optimization_menu.addAction(caching_action)
+        
+        # Clear cache action
+        clear_cache_action = QAction(self.tr("Clear AI Cache"), self)
+        clear_cache_action.triggered.connect(self.clear_ai_cache)
+        ai_optimization_menu.addAction(clear_cache_action)
+        
+        ai_optimization_menu.addSeparator()
+        
+        # Show optimization stats
+        stats_action = QAction(self.tr("Show Optimization Stats"), self)
+        stats_action.triggered.connect(self.show_optimization_stats)
+        ai_optimization_menu.addAction(stats_action)
+
+    def _create_toolbar(self):
+        """Tworzy toolbar aplikacji"""
+        toolbar = self.addToolBar("Toolbar")
+        toolbar.setMovable(False)
+        toolbar.setFloatable(False)
+        
+        # New Session action
+        new_session_action = QAction(QApplication.style().standardIcon(QStyle.SP_ToolBarHorizontalExtensionButton), self.tr("New Session"), self)
+        new_session_action.triggered.connect(self.start_new_session)
         toolbar.addAction(new_session_action)
-        self.verbose_log_checkbox = QCheckBox("Verbose Backend Log")
-        self.verbose_log_checkbox.setToolTip("Show detailed backend system/debug messages in this GUI terminal.")
+        
+        # Verbose logging checkbox
+        self.verbose_log_checkbox = QCheckBox(self.tr("Verbose Backend Log"))
+        self.verbose_log_checkbox.setToolTip(self.tr("Show detailed backend system/debug messages in this GUI terminal."))
         self.verbose_log_checkbox.setChecked(self.verbose_logging)
         self.verbose_log_checkbox.stateChanged.connect(self.toggle_verbose_logging)
-        toolbar.addWidget(self.verbose_log_checkbox);
-        spacer = QWidget(); spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        toolbar.addWidget(self.verbose_log_checkbox)
+        
+        # Real-time analysis checkbox
+        self.realtime_analysis_checkbox = QCheckBox(self.tr("Real-time AI"))
+        self.realtime_analysis_checkbox.setToolTip(self.tr("Enable real-time AI analysis while typing (saves API calls when disabled)"))
+        self.realtime_analysis_checkbox.setChecked(self.realtime_analysis_enabled)
+        self.realtime_analysis_checkbox.stateChanged.connect(self.toggle_realtime_analysis)
+        toolbar.addWidget(self.realtime_analysis_checkbox)
+        
+        # Spacer
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         toolbar.addWidget(spacer)
-        self.settings_button_action_toolbar = QAction(QApplication.style().standardIcon(QStyle.SP_FileDialogDetailedView), "Settings", self)
-        self.settings_button_action_toolbar.triggered.connect(self.show_settings); toolbar.addAction(self.settings_button_action_toolbar)
-        self.status_bar = QStatusBar(); self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Initializing...", 2000)
-        QTimer.singleShot(0, lambda: self.input_field.setFocus())
+        
+        # Settings button
+        self.settings_button_action_toolbar = QAction(QApplication.style().standardIcon(QStyle.SP_FileDialogDetailedView), self.tr("Settings"), self)
+        self.settings_button_action_toolbar.triggered.connect(self.show_settings)
+        toolbar.addAction(self.settings_button_action_toolbar)
 
     def apply_theme(self):
         dark = self.config.get("theme", "dark") == "dark"
@@ -906,8 +1099,91 @@ class LinuxAIAssistantGUI(QMainWindow):
 
     def toggle_verbose_logging(self, state_int: int):
         self.verbose_logging = (state_int == Qt.Checked)
-        self.config["verbose_logging"] = self.verbose_logging; self.save_config()
+        self.config["verbose_logging"] = self.verbose_logging
+        self.save_config()
         self.log_message(f"Verbose backend logging (GUI display) {'enabled' if self.verbose_logging else 'disabled'}.", "system", True)
+
+    def toggle_realtime_analysis(self, state_int: int):
+        self.realtime_analysis_enabled = (state_int == Qt.Checked)
+        self.config["realtime_analysis"] = self.realtime_analysis_enabled
+        self.save_config()
+        
+        if not self.realtime_analysis_enabled:
+            # Zatrzymaj aktywny timer
+            if self.explanation_timer and self.explanation_timer.isActive():
+                self.explanation_timer.stop()
+            # Wyczyść AI output
+            if not self.generated_command_panel.isVisible():
+                self.ai_output_display.clear()
+                if hasattr(self, '_original_ai_output_placeholder'):
+                    self.ai_output_display.setPlaceholderText(self._original_ai_output_placeholder)
+        
+        self.log_message(f"Real-time AI analysis {'enabled' if self.realtime_analysis_enabled else 'disabled'}.", "system", True)
+
+    def toggle_realtime_analysis_from_menu(self):
+        """Przełącza real-time analysis z menu"""
+        self.realtime_analysis_enabled = not self.realtime_analysis_enabled
+        self.config["realtime_analysis"] = self.realtime_analysis_enabled
+        self.save_config()
+        
+        # Aktualizuj checkbox w toolbar
+        if hasattr(self, 'realtime_analysis_checkbox'):
+            self.realtime_analysis_checkbox.setChecked(self.realtime_analysis_enabled)
+        
+        if not self.realtime_analysis_enabled:
+            # Zatrzymaj aktywny timer
+            if self.explanation_timer and self.explanation_timer.isActive():
+                self.explanation_timer.stop()
+            # Wyczyść AI output
+            if not self.generated_command_panel.isVisible():
+                self.ai_output_display.clear()
+                if hasattr(self, '_original_ai_output_placeholder'):
+                    self.ai_output_display.setPlaceholderText(self._original_ai_output_placeholder)
+        
+        self.log_message(f"Real-time AI analysis {'enabled' if self.realtime_analysis_enabled else 'disabled'}.", "system", True)
+
+    def toggle_ai_caching(self):
+        """Przełącza AI caching"""
+        self.enable_ai_caching = not self.enable_ai_caching
+        self.config["enable_ai_caching"] = self.enable_ai_caching
+        self.save_config()
+        
+        if not self.enable_ai_caching:
+            # Wyczyść cache
+            self.explanations_cache.clear()
+            self.save_explanations_cache()
+        
+        self.log_message(f"AI caching {'enabled' if self.enable_ai_caching else 'disabled'}.", "system", True)
+
+    def clear_ai_cache(self):
+        """Czyści cache AI"""
+        cache_size = len(self.explanations_cache)
+        self.explanations_cache.clear()
+        self.save_explanations_cache()
+        self.log_message(f"AI cache cleared ({cache_size} entries removed).", "system", True)
+
+    def show_optimization_stats(self):
+        """Pokazuje statystyki optymalizacji"""
+        stats = f"""AI Optimization Statistics:
+
+Cache:
+- Cached explanations: {len(self.explanations_cache)}
+- Cache enabled: {self.enable_ai_caching}
+
+Real-time Analysis:
+- Enabled: {self.realtime_analysis_enabled}
+- Delay: {self.realtime_analysis_delay}s
+- Cooldown: {self.ai_request_cooldown}s
+
+Queue:
+- Pending requests: {len(self.ai_request_queue)}
+- Last request time: {time.time() - self.last_ai_request_time:.1f}s ago
+
+Configuration:
+- Max cache size: {self.max_cache_size}
+- Verbose logging: {self.verbose_logging}"""
+        
+        QMessageBox.information(self, "AI Optimization Stats", stats)
 
     def check_api_key(self):
         if not self.config["api_keys"].get("gemini", ""): QTimer.singleShot(100, self.prompt_for_api_key)
@@ -972,7 +1248,7 @@ class LinuxAIAssistantGUI(QMainWindow):
         self.input_field.setEnabled(False)
         self.execute_button.setEnabled(False) # Deaktywuj Execute/Run in Terminal
         self.copy_button.setEnabled(False)
-        self.cancel_button.setText("Stop") # Zmień Cancel na Stop
+        self.cancel_button.setText(self.tr("Stop")) # Zmień Cancel na Stop
         self.cancel_button.setEnabled(True)
 
 
@@ -982,19 +1258,38 @@ class LinuxAIAssistantGUI(QMainWindow):
         self.ai_output_display.setPlaceholderText(f"{self._current_animation_message} {char}"); self.animation_index += 1
 
     def stop_processing_animation(self, restore_placeholder: bool = True):
-        if not self.is_processing_animation_active: return
-        if self.animation_timer and self.animation_timer.isActive(): self.animation_timer.stop()
-        if restore_placeholder:
-            self.ai_output_display.setPlaceholderText(self._original_ai_output_placeholder if hasattr(self, '_original_ai_output_placeholder') else "Type a command or query... Analysis or explanation will appear here.")
-            if not self.ai_output_display.toPlainText().strip(): self.ai_output_display.clear()
-        self.is_processing_animation_active = False; self.input_field.setEnabled(True)
-        # Przywracanie stanu przycisków jest teraz w `process_finished` i `execution_process_finished_from_backend`
-        # oraz `handle_stdout` jeśli nie ma polecenia.
-        # self.execute_button.setEnabled(True) # Nie tutaj, bo może być jeszcze panel polecenia
-        # self.copy_button.setEnabled(True)
-        # self.cancel_button.setText("Cancel")
-        # self.cancel_button.setEnabled(self.generated_command_panel.isVisible())
-        QTimer.singleShot(0, lambda: self.input_field.setFocus())
+        if hasattr(self, 'animation_timer') and self.animation_timer:
+            self.animation_timer.stop()
+        if hasattr(self, 'is_processing_animation_active'):
+            self.is_processing_animation_active = False
+        if restore_placeholder and hasattr(self, '_original_ai_output_placeholder'):
+            self.ai_output_display.setPlaceholderText(self._original_ai_output_placeholder)
+        self.input_field.setEnabled(True)
+        self.execute_button.setEnabled(True)
+        self.copy_button.setEnabled(True)
+        self.cancel_button.setText("Cancel")
+        self.cancel_button.setEnabled(False)
+
+    def _create_and_start_backend_process(self, args: list, env_vars: Optional[Dict[str, str]] = None) -> QProcess:
+        """Prywatna metoda pomocnicza do tworzenia i uruchamiania procesów backend"""
+        process = QProcess(self)
+        
+        # Ustaw środowisko
+        env = QProcessEnvironment.systemEnvironment()
+        if env_vars:
+            for key, value in env_vars.items():
+                env.insert(key, value)
+        process.setProcessEnvironment(env)
+        
+        # Połącz sygnały
+        process.readyReadStandardOutput.connect(lambda: self.handle_stdout())
+        process.readyReadStandardError.connect(lambda: self.handle_stderr())
+        process.finished.connect(self.process_finished)
+        
+        # Uruchom proces
+        process.start(args[0], args[1:])
+        
+        return process
 
     def handle_stdout(self):
         self.stop_processing_animation(restore_placeholder=False)
@@ -1055,11 +1350,16 @@ class LinuxAIAssistantGUI(QMainWindow):
                     self.generated_command_header_label.setText("Generated Command:")
                     self.generated_command_display.setText(cmd)
                     self.ai_output_display.setText(expl or "N/A")
-                    self.generated_command_panel.show(); self.current_command = cmd
+                    self.generated_command_panel.show()
+                    self.current_command = cmd
+                    
+                    # Sprawdź czy polecenie wymaga zewnętrznego terminala
                     if self.last_api_response.needs_external_terminal:
                         self.execute_button.setText(sugg_label if sugg_label else "Run in Terminal")
+                        self.current_command_suggested_interaction_input = "TERMINAL_REQUIRED"
                     else:
                         self.execute_button.setText(sugg_label if sugg_label else "Execute")
+                    
                     self.execute_button.setEnabled(True)
                     self.cancel_button.setEnabled(True) # Włącz Cancel, bo jest sugestia
                     if cmd and expl and "N/A" not in expl and "not in cache" not in expl.lower():
@@ -1177,24 +1477,35 @@ class LinuxAIAssistantGUI(QMainWindow):
 
         self.start_processing_animation("Executing AI-generated command...")
         cmd_to_backend = self.current_command
+        
+        # Bezpieczne obsługiwanie poleceń sudo w GUI używając pkexec
         if self.current_command.strip().startswith("sudo ") and not self.current_command.strip().startswith("echo "):
-            dialog = SudoPasswordDialog(self, self.current_command)
-            if dialog.exec_():
-                passwd = dialog.get_password()
-                if passwd:
-                    cmd_no_sudo = self.current_command.replace("sudo ", "", 1).strip()
-                    esc_passwd = shlex.quote(passwd)
-                    cmd_to_backend = f"echo {esc_passwd} | sudo -S -p '' {cmd_no_sudo}"
-                    self.log_message("Sudo password provided. Preparing command for backend.", "system", True)
+            # Sprawdź, czy pkexec jest dostępny
+            if shutil.which("pkexec"):
+                # Użyj pkexec zamiast niebezpiecznego przekazywania hasła przez echo
+                cmd_no_sudo = self.current_command.replace("sudo ", "", 1).strip()
+                cmd_to_backend = f"pkexec {cmd_no_sudo}"
+                self.log_message("Using pkexec for sudo command - system will show native password dialog.", "system", True)
+            else:
+                # Fallback: pokaż dialog z ostrzeżeniem o bezpieczeństwie
+                self.log_message("pkexec not available. Using traditional sudo with password dialog.", "warning", True)
+                dialog = SudoPasswordDialog(self, self.current_command)
+                if dialog.exec_():
+                    passwd = dialog.get_password()
+                    if passwd:
+                        cmd_no_sudo = self.current_command.replace("sudo ", "", 1).strip()
+                        esc_passwd = shlex.quote(passwd)
+                        cmd_to_backend = f"echo {esc_passwd} | sudo -S -p '' {cmd_no_sudo}"
+                        self.log_message("Sudo password provided. Preparing command for backend.", "system", True)
+                    else:
+                        self.log_message("Sudo password not provided. Cancelled.", "error", True); self.stop_processing_animation()
+                        # Przywróć przyciski
+                        self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel")
+                        return
                 else:
-                    self.log_message("Sudo password not provided. Cancelled.", "error", True); self.stop_processing_animation()
-                    # Przywróć przyciski
+                    self.log_message("Sudo command execution cancelled by user.", "system", True); self.stop_processing_animation()
                     self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel")
                     return
-            else:
-                self.log_message("Sudo command execution cancelled by user.", "system", True); self.stop_processing_animation()
-                self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel")
-                return
 
         self.current_command_suggested_interaction_input = None
         self.log_message(f"Sending to backend (AI-gen, auto-confirm): {self.current_command}", "command", True)
@@ -1260,10 +1571,28 @@ class LinuxAIAssistantGUI(QMainWindow):
         QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def request_ai_explanation_for_executed_command(self, command_str: str):
-        self.start_processing_animation(f"Getting AI explanation for: {command_str}") # Animacja już powinna być zatrzymana
+        # Sprawdź cache przed wywołaniem AI
         cached_explanation = self.explanations_cache.get(command_str)
-        if not cached_explanation: cmd_prefix = command_str.split(" ", 1)[0]; cached_explanation = self.explanations_cache.get(cmd_prefix)
+        if not cached_explanation: 
+            cmd_prefix = command_str.split(" ", 1)[0]
+            cached_explanation = self.explanations_cache.get(cmd_prefix)
 
+        # Jeśli mamy cache, użyj go zamiast wywoływania AI
+        if cached_explanation:
+            self.log_message(f"Using cached explanation for '{command_str}'", "system")
+            self._display_command_result(command_str, cached_explanation)
+            return
+
+        # Sprawdź czy to podstawowe polecenie - dla nich nie wywołuj AI
+        command_prefix = command_str.split(' ', 1)[0].lower()
+        if command_prefix in self.basic_command_prefixes:
+            basic_explanation = f"Basic command: {command_str}"
+            self._display_command_result(command_str, basic_explanation)
+            return
+
+        # Tylko dla złożonych poleceń wywołaj AI
+        self.start_processing_animation(f"Getting AI explanation for: {command_str}")
+        
         # Reset przycisków po wykonaniu basic command
         self.execute_button.setText("Execute")
         self.execute_button.setEnabled(False) # Execute nieaktywne, bo polecenie już wykonane
@@ -1272,37 +1601,51 @@ class LinuxAIAssistantGUI(QMainWindow):
         self.cancel_button.setEnabled(True)  # Można anulować (wyczyścić) panel
 
         if self.is_offline:
-            if cached_explanation: self.log_message(f"Fetched explanation for '{command_str}' from cache (offline).", "system"); self.ai_output_display.setText(cached_explanation)
-            else: self.log_message(f"Cannot fetch AI explanation for '{command_str}' while offline and not in cache.", "offline_status", True); self.ai_output_display.setText("Explanation N/A (Offline and not cached).")
-            self.generated_command_header_label.setText("Executed Command:"); self.generated_command_display.setText(command_str)
-            self.generated_command_panel.show()
-            self.stop_processing_animation(restore_placeholder=False); QTimer.singleShot(0, lambda: self.input_field.setFocus()); return
+            self.log_message(f"Cannot fetch AI explanation for '{command_str}' while offline.", "offline_status", True)
+            self._display_command_result(command_str, "Explanation N/A (Offline).")
+            return
 
         if not self.ai_engine_for_gui or not self.ai_engine_for_gui.is_configured:
             self.log_message("AI engine for GUI not available to explain executed command.", "system")
-            self.ai_output_display.setText(cached_explanation or "Explanation N/A (GUI AI engine disabled or not configured).")
-            self.generated_command_header_label.setText("Executed Command:"); self.generated_command_display.setText(command_str)
-            self.generated_command_panel.show()
-            self.stop_processing_animation(restore_placeholder=False); return
+            self._display_command_result(command_str, "Explanation N/A (GUI AI engine disabled).")
+            return
 
+        # Użyj systemu kolejkowania z priorytetem
+        if self._queue_ai_request(command_str, priority=True):
+            self._execute_ai_explanation_request(command_str)
+        else:
+            # Dodaj do kolejki z priorytetem
+            self.ai_request_queue.insert(0, command_str)  # Dodaj na początek kolejki
+
+    def _display_command_result(self, command_str: str, explanation: str):
+        """Wyświetla wynik polecenia z wyjaśnieniem"""
+        self.generated_command_header_label.setText("Executed Command:")
+        self.generated_command_display.setText(command_str)
+        self.ai_output_display.setText(explanation)
+        self.generated_command_panel.show()
+        self.stop_processing_animation(restore_placeholder=False)
+        QTimer.singleShot(0, lambda: self.input_field.setFocus())
+
+    def _execute_ai_explanation_request(self, command_str: str):
+        """Wykonuje zapytanie AI o wyjaśnienie polecenia"""
         try:
             lang_instr_gui = self._get_gui_ai_language_instruction()
-            api_res: Optional[GeminiApiResponse_class_ref] = self.ai_engine_for_gui.analyze_text_input_type(command_str, language_instruction=lang_instr_gui)
-            explanation_text = cached_explanation or "Could not get explanation from AI."
-            if api_res and api_res.success and api_res.analyzed_text_type == "linux_command" and api_res.explanation: explanation_text = api_res.explanation
-            elif api_res and api_res.error: explanation_text = f"AI Analysis Error: {api_res.error}"
+            api_res = self.ai_engine_for_gui.analyze_text_input_type(command_str, language_instruction=lang_instr_gui)
+            
+            explanation_text = "Could not get explanation from AI."
+            if api_res and api_res.success and api_res.analyzed_text_type == "linux_command" and api_res.explanation:
+                explanation_text = api_res.explanation
+                # Cache wynik
+                self.explanations_cache[command_str] = explanation_text
+                self.save_explanations_cache()
+            elif api_res and api_res.error:
+                explanation_text = f"AI Analysis Error: {api_res.error}"
 
-            self.generated_command_header_label.setText("Executed Command:"); self.generated_command_display.setText(command_str)
-            self.ai_output_display.setText(explanation_text); self.generated_command_panel.show()
-
-            if command_str and explanation_text and "Could not get" not in explanation_text and "Error" not in explanation_text and "N/A" not in explanation_text:
-                 self.explanations_cache[command_str] = explanation_text; self.save_explanations_cache()
+            self._display_command_result(command_str, explanation_text)
+            
         except Exception as e:
             self.log_message(f"Exception requesting AI explanation for '{command_str}': {e}", "error", True)
-            self.ai_output_display.setText(cached_explanation or f"Error getting explanation: {e}")
-            self.generated_command_panel.show(); self.generated_command_display.setText(command_str)
-        finally:
-            self.stop_processing_animation(restore_placeholder=False); QTimer.singleShot(0, lambda: self.input_field.setFocus())
+            self._display_command_result(command_str, f"Error getting explanation: {e}")
 
     def handle_execution_stdout_from_backend(self, proc: Optional[QProcess]):
         if not proc: return
@@ -1400,8 +1743,15 @@ class LinuxAIAssistantGUI(QMainWindow):
             # Tryb "Stop"
             self.log_message("Attempting to stop current execution...", "system", True)
             self.current_exec_process.terminate() # Wyślij SIGTERM
-            # Można dodać QTimer, aby po krótkim czasie wysłać kill(), jeśli terminate() nie zadziała
-            # QTimer.singleShot(1000, self.force_kill_if_still_running)
+            
+            # Dodaj mechanizm fallback - sprawdź po 2 sekundach czy proces wciąż działa
+            def force_kill_if_still_running():
+                if self.current_exec_process and self.current_exec_process.state() == QProcess.Running:
+                    self.log_message("Process still running after terminate(). Force killing with SIGKILL...", "system", True)
+                    self.current_exec_process.kill() # Wyślij SIGKILL
+            
+            QTimer.singleShot(2000, force_kill_if_still_running)
+            
             self.cancel_button.setEnabled(False) # Zdezaktywuj, aby uniknąć wielokrotnych kliknięć
             self.cancel_button.setText("Stopping...")
             # Nie ukrywamy panelu ani nie resetujemy current_command tutaj, czekamy na sygnał `finished`
@@ -1426,12 +1776,16 @@ class LinuxAIAssistantGUI(QMainWindow):
         except Exception as e: self.log_message(f"Error saving explanations cache: {e}", "error", True)
 
     def update_realtime_analysis(self):
+        if not self.realtime_analysis_enabled:
+            return
+            
         if self.is_offline:
             if not self.generated_command_panel.isVisible():
                  self.ai_output_display.setPlaceholderText("Offline Mode: Real-time analysis disabled.")
                  if not self.input_field.text().strip(): self.ai_output_display.clear()
             if self.explanation_timer and self.explanation_timer.isActive(): self.explanation_timer.stop()
             return
+        
         txt = self.input_field.text().strip()
         if not self.generated_command_panel.isVisible():
             if not txt:
@@ -1443,11 +1797,19 @@ class LinuxAIAssistantGUI(QMainWindow):
                 self.ai_output_display.setText("Keep typing...")
                 if self.explanation_timer and self.explanation_timer.isActive(): self.explanation_timer.stop()
                 return
-        if self.explanation_timer and self.explanation_timer.isActive(): self.explanation_timer.stop()
+        
+        # Zatrzymaj poprzedni timer
+        if self.explanation_timer and self.explanation_timer.isActive(): 
+            self.explanation_timer.stop()
+        
+        # Utwórz nowy timer z dłuższym opóźnieniem
         if not self.explanation_timer:
-            self.explanation_timer = QTimer(self); self.explanation_timer.setSingleShot(True)
-            self.explanation_timer.timeout.connect(lambda: self.request_command_analysis_and_explanation(self.input_field.text().strip()))
-        self.explanation_timer.start(1200)
+            self.explanation_timer = QTimer(self)
+            self.explanation_timer.setSingleShot(True)
+            self.explanation_timer.timeout.connect(lambda: self._queue_ai_request(txt))
+        
+        # Zwiększ opóźnienie z 1.2s na 3.0s
+        self.explanation_timer.start(int(self.realtime_analysis_delay * 1000))
 
     def request_command_analysis_and_explanation(self, text_input: str):
         if not text_input:
@@ -1526,28 +1888,39 @@ class LinuxAIAssistantGUI(QMainWindow):
             self.log_message("Offline: Cannot process detailed AI query.", "offline_status", True)
             self.ai_output_display.setText("Offline: AI query processing unavailable. Check connection or use basic commands.")
             self.stop_processing_animation(); return
+        
         self.log_message("Processing (detailed) query with backend...", "debug_backend")
         if self.process and self.process.state() == QProcess.Running:
             self.log_message("Backend busy. Please wait for the current operation to complete.", "error", True); self.stop_processing_animation(); return
-        self.process = QProcess(self); self.process.readyReadStandardOutput.connect(self.handle_stdout) # Tutaj był błąd
-        self.process.readyReadStandardError.connect(self.handle_stderr); self.process.finished.connect(self.process_finished)
-        env = QProcessEnvironment.systemEnvironment();
-        gemini_key = self.config["api_keys"].get("gemini", "")
-        if gemini_key: env.insert("GOOGLE_API_KEY", gemini_key)
-        else: self.log_message("Warning: Gemini API key not found in config for backend process.", "error", True)
-        env.insert("LAA_BACKEND_MODE", "1"); env.insert("LAA_VERBOSE_LOGGING_EFFECTIVE", "1" if self.verbose_logging else "0")
-        self.process.setProcessEnvironment(env)
+        
+        # Przygotuj argumenty i zmienne środowiskowe
         exec_path, exec_args_list = (sys.executable, []) if getattr(sys,'frozen',False) and hasattr(sys, '_MEIPASS') else \
                                    (sys.executable, [os.path.join(os.path.dirname(os.path.abspath(__file__)),"src","backend_cli.py")])
         if not (getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')) and not os.path.exists(exec_args_list[0]):
              self.log_message(f"CRITICAL: Dev backend_cli.py not found: {exec_args_list[0]}", "error", True); self.stop_processing_animation(); return
+        
         exec_args_list.extend(["--query", detailed_query, "--json", "--working-dir", self.gui_current_working_dir])
         logged_args = ' '.join(shlex.quote(arg) for arg in exec_args_list)
         self.log_message(f"Cmd to backend (detailed_query): {exec_path} {logged_args}", "debug_backend")
-        self.process.start(exec_path, exec_args_list)
+        
+        # Przygotuj zmienne środowiskowe
+        env_vars = {
+            "LAA_BACKEND_MODE": "1",
+            "LAA_VERBOSE_LOGGING_EFFECTIVE": "1" if self.verbose_logging else "0"
+        }
+        gemini_key = self.config["api_keys"].get("gemini", "")
+        if gemini_key:
+            env_vars["GOOGLE_API_KEY"] = gemini_key
+        else:
+            self.log_message("Warning: Gemini API key not found in config for backend process.", "error", True)
+        
+        # Użyj metody pomocniczej do utworzenia i uruchomienia procesu
+        self.process = self._create_and_start_backend_process([exec_path] + exec_args_list, env_vars)
+        
         if not self.process.waitForStarted(7000):
             self.log_message(f"Error starting backend: {self.process.errorString()}", "error", True); self.stop_processing_animation()
             if self.process: self.process.deleteLater(); self.process = None
+        
         QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def start_new_session(self):
@@ -1593,6 +1966,107 @@ class LinuxAIAssistantGUI(QMainWindow):
         if self.current_exec_process and self.current_exec_process.state() == QProcess.Running: self.current_exec_process.kill(); self.current_exec_process.waitForFinished(1000)
         super().closeEvent(event)
 
+    def _queue_ai_request(self, query: str, priority: bool = False):
+        """Dodaje zapytanie do kolejki AI z opcjonalnym priorytetem"""
+        current_time = time.time()
+        
+        # Sprawdź cooldown
+        if current_time - self.last_ai_request_time < self.ai_request_cooldown and not priority:
+            # Dodaj do kolejki zamiast natychmiastowego wywołania
+            if query not in self.ai_request_queue:
+                self.ai_request_queue.append(query)
+            
+            # Ustaw timer do przetworzenia kolejki
+            if not self.ai_batch_timer:
+                self.ai_batch_timer = QTimer(self)
+                self.ai_batch_timer.setSingleShot(True)
+                self.ai_batch_timer.timeout.connect(self._process_ai_queue)
+            
+            if not self.ai_batch_timer.isActive():
+                remaining_cooldown = self.ai_request_cooldown - (current_time - self.last_ai_request_time)
+                self.ai_batch_timer.start(int(remaining_cooldown * 1000))
+            return False  # Nie wykonano natychmiast
+        
+        # Natychmiastowe wykonanie
+        self.last_ai_request_time = current_time
+        return True
+
+    def _process_ai_queue(self):
+        """Przetwarza kolejkę zapytań AI"""
+        if not self.ai_request_queue:
+            return
+        
+        # Weź ostatnie zapytanie z kolejki (najbardziej aktualne)
+        latest_query = self.ai_request_queue.pop()
+        self.ai_request_queue.clear()  # Wyczyść starą kolejkę
+        
+        # Wykonaj zapytanie
+        self._execute_ai_request(latest_query)
+
+    def _execute_ai_request(self, query: str):
+        """Wykonuje pojedyncze zapytanie AI z cache'owaniem"""
+        # Sprawdź cache
+        if query in self.explanations_cache:
+            self.ai_output_display.setText(f"Cached: {self.explanations_cache[query]}")
+            return
+        
+        # Sprawdź czy to podstawowe polecenie
+        command_prefix = query.split(' ', 1)[0].lower()
+        if command_prefix in self.basic_command_prefixes:
+            # Dla podstawowych poleceń nie wywołuj AI w real-time
+            self.ai_output_display.setText(f"Basic command: {query}")
+            return
+        
+        # Wykonaj zapytanie AI
+        if self.ai_engine_for_gui and self.ai_engine_for_gui.is_configured:
+            try:
+                lang_instr_gui = self._get_gui_ai_language_instruction()
+                api_res = self.ai_engine_for_gui.analyze_text_input_type(query, language_instruction=lang_instr_gui)
+                
+                if api_res and api_res.success and api_res.explanation:
+                    self.ai_output_display.setText(f"AI: {api_res.explanation}")
+                    # Cache wynik
+                    self.explanations_cache[query] = api_res.explanation
+                    self.save_explanations_cache()
+                else:
+                    self.ai_output_display.setText("AI analysis not available")
+            except Exception as e:
+                self.log_message(f"Error in AI request: {e}", "error", True)
+                self.ai_output_display.setText("AI analysis error")
+        else:
+            self.ai_output_display.setText("AI engine not available")
+
+
+def load_translations(app: QApplication) -> QTranslator:
+    """Ładuje tłumaczenia dla aplikacji na podstawie języka systemu"""
+    translator = QTranslator()
+    
+    # Wykryj język systemu
+    try:
+        system_lang, _ = locale.getdefaultlocale()
+        if system_lang:
+            lang_code = system_lang.split('_')[0]  # pl_PL -> pl
+        else:
+            lang_code = 'en'  # fallback na angielski
+    except:
+        lang_code = 'en'
+    
+    # Ścieżka do plików tłumaczeń
+    translations_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "translations")
+    translation_file = f"linux_ai_assistant_gui_{lang_code}.qm"
+    translation_path = os.path.join(translations_dir, translation_file)
+    
+    # Sprawdź czy plik tłumaczeń istnieje
+    if os.path.exists(translation_path):
+        if translator.load(translation_path):
+            app.installTranslator(translator)
+            print(f"Loaded translation: {translation_file}")
+        else:
+            print(f"Failed to load translation: {translation_file}")
+    else:
+        print(f"Translation file not found: {translation_path}")
+    
+    return translator
 
 def main_gui_entry_point():
     app = QApplication(sys.argv)
@@ -1600,6 +2074,9 @@ def main_gui_entry_point():
     app.setApplicationVersion("1.1")
     app.setOrganizationName("Hyconiek")
     app.setOrganizationDomain("github.com/hyconiek")
+
+    # Załaduj tłumaczenia
+    translator = load_translations(app)
 
     window = LinuxAIAssistantGUI()
     window.show()

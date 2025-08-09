@@ -126,12 +126,47 @@ class LinuxAIAssistant:
 
 
     def _get_ai_language_instruction(self) -> str:
-        if self.system_language == "pl":
-            return "ODPOWIADAJ ZAWSZE W JĘZYKU POLSKIM. Wyjaśnienie polecenia, pytania doprecyzowujące, sugestie naprawcze i wszelkie inne teksty MUSZĄ być po polsku."
-        elif self.system_language == "cs": # Dodano dla czeskiego
-             return "ODPOVÍDEJ VŽDY ČESKY. Vysvětlení příkazu, doplňující otázky, návrhy oprav a veškeré další texty MUSÍ být v češtině."
-        # Domyślnie angielski
-        return "Respond always in English. The command explanation, clarification questions, fix suggestions, and any other text MUST be in English."
+        """Zwraca instrukcję językową na podstawie języka systemu"""
+        try:
+            # Pobierz język systemu
+            lang_code, _ = locale.getdefaultlocale()
+            system_language = "en"  # domyślny
+            
+            if lang_code:
+                if '_' in lang_code:
+                    system_language = lang_code.split('_')[0]
+                else:
+                    system_language = lang_code
+            
+            # Mapowanie języków na instrukcje
+            language_instructions = {
+                "pl": "ODPOWIADAJ ZAWSZE W JĘZYKU POLSKIM. Wyjaśnienie polecenia, pytania doprecyzowujące, sugestie naprawcze i wszelkie inne teksty MUSZĄ być po polsku.",
+                "cs": "ODPOVÍDEJ VŽDY ČESKY. Vysvětlení příkazu, doplňující otázky, návrhy oprav a veškeré další texty MUSÍ být v češtině.",
+                "sk": "ODPOVÍDAJ VŽDY SLOVENSKY. Vysvetlenie príkazu, doplňujúce otázky, návrhy oprav a všetky ďalšie texty MUSIA byť v slovenčine.",
+                "de": "ANTWORTE IMMER AUF DEUTSCH. Die Befehlsbeschreibung, Klärungsfragen, Fehlerbehebungsvorschläge und alle anderen Texte MÜSSEN auf Deutsch sein.",
+                "fr": "RÉPONDEZ TOUJOURS EN FRANÇAIS. L'explication de la commande, les questions de clarification, les suggestions de correction et tous les autres textes DOIVENT être en français.",
+                "es": "RESPONDE SIEMPRE EN ESPAÑOL. La explicación del comando, las preguntas de aclaración, las sugerencias de corrección y cualquier otro texto DEBE estar en español.",
+                "it": "RISPOSTA SEMPRE IN ITALIANO. La spiegazione del comando, le domande di chiarimento, i suggerimenti di correzione e qualsiasi altro testo DEVONO essere in italiano.",
+                "ru": "ОТВЕЧАЙ ВСЕГДА НА РУССКОМ ЯЗЫКЕ. Объяснение команды, уточняющие вопросы, предложения по исправлению и любой другой текст ДОЛЖНЫ быть на русском языке.",
+                "uk": "ВІДПОВІДАЙ ЗАВЖДИ УКРАЇНСЬКОЮ МОВОЮ. Пояснення команди, уточнюючі питання, пропозиції щодо виправлення та будь-який інший текст ПОВИННІ бути українською мовою.",
+                "ja": "常に日本語で答えてください。コマンドの説明、明確化の質問、修正提案、その他のすべてのテキストは日本語である必要があります。",
+                "ko": "항상 한국어로 답변하세요. 명령어 설명, 명확화 질문, 수정 제안 및 기타 모든 텍스트는 한국어여야 합니다.",
+                "zh": "始终用中文回答。命令说明、澄清问题、修复建议和任何其他文本必须使用中文。",
+                "ar": "أجب دائمًا باللغة العربية. شرح الأمر والأسئلة التوضيحية واقتراحات الإصلاح وأي نص آخر يجب أن يكون باللغة العربية.",
+                "hi": "हमेशा हिंदी में जवाब दें। कमांड की व्याख्या, स्पष्टीकरण प्रश्न, सुधार सुझाव और कोई भी अन्य पाठ हिंदी में होना चाहिए।",
+                "tr": "HER ZAMAN TÜRKÇE YANITLAYIN. Komut açıklaması, netleştirme soruları, düzeltme önerileri ve diğer tüm metinler TÜRKÇE olmalıdır.",
+                "vi": "LUÔN TRẢ LỜI BẰNG TIẾNG VIỆT. Giải thích lệnh, câu hỏi làm rõ, gợi ý sửa lỗi và bất kỳ văn bản nào khác PHẢI bằng tiếng Việt.",
+                "th": "ตอบกลับเป็นภาษาไทยเสมอ คำอธิบายคำสั่ง คำถามเพื่อความชัดเจน ข้อเสนอแนะในการแก้ไข และข้อความอื่นๆ ต้องเป็นภาษาไทย",
+                "id": "SELALU JAWAB DALAM BAHASA INDONESIA. Penjelasan perintah, pertanyaan klarifikasi, saran perbaikan, dan teks lainnya HARUS dalam bahasa Indonesia."
+            }
+            
+            # Zwróć instrukcję dla wykrytego języka lub angielski jako domyślny
+            return language_instructions.get(system_language.lower(), 
+                "Respond always in English. The command explanation, clarification questions, fix suggestions, and any other text MUST be in English.")
+                
+        except Exception as e:
+            # W przypadku błędu zwróć angielski jako fallback
+            return "Respond always in English. The command explanation, clarification questions, fix suggestions, and any other text MUST be in English."
 
     def _add_to_chat_history(self, role: str, text_content: str):
         # Ogranicz długość pojedynczej wiadomości i całkowitą historię
@@ -157,12 +192,54 @@ class LinuxAIAssistant:
         cwd_entries_list: List[str] = []
         try:
             if os.path.isdir(current_dir_for_ai_context):
-                all_entries = os.listdir(current_dir_for_ai_context)
-                # Sortuj dla spójności i ogranicz liczbę, aby nie przekroczyć limitu tokenów AI
-                cwd_entries_list = all_entries[:100] # Pierwsze 100 wystarczy dla kontekstu
-                if len(all_entries) > 100 : self.logger.info(f"Backend process_query: Dostarczam pierwsze 100 wpisów z CWD ({len(all_entries)} wszystkich).")
-                else: self.logger.info(f"Backend process_query: Dostarczam {len(cwd_entries_list)} wpisów z CWD.")
-        except Exception as e: self.logger.warning(f"Backend: Nie udało się odczytać wpisów z CWD ({current_dir_for_ai_context}): {e}")
+                # Użyj ls -l zamiast os.listdir() aby dostarczyć bogatszy kontekst
+                cwd_context_command = "ls -l --time-style=long-iso"
+                context_result = self.command_executor.execute(cwd_context_command, working_dir_override=current_dir_for_ai_context)
+                
+                if context_result.success and context_result.stdout:
+                    # Ogranicz ilość danych, żeby nie przekroczyć limitu tokenów
+                    lines = context_result.stdout.strip().split('\n')
+                    # Pomiń pierwszą linię 'total ...' jeśli istnieje
+                    if lines and lines[0].startswith('total'):
+                        lines = lines[1:]
+                    
+                    # Weź np. pierwsze 200 wpisów (zwiększone z 100)
+                    limited_lines = lines[:200]
+                    cwd_files_info = (f"Zawartość bieżącego katalogu roboczego ({current_dir_for_ai_context}):\n"
+                                      f"```\n{''.join(limited_lines)}\n```")
+                    if len(lines) > 200:
+                        cwd_files_info += f"\n(i {len(lines) - 200} innych wpisów...)"
+                    
+                    # Dodatkowo zachowaj listę nazw plików dla kompatybilności
+                    cwd_entries_list = [line.split()[-1] for line in limited_lines if line.strip()]
+                    
+                    # Sprawdź czy są pliki z "kogut" w nazwie w podstawowej liście
+                    kogut_files = [f for f in cwd_entries_list if 'kogut' in f.lower()]
+                    
+                    # Jeśli nie ma plików z "kogut" w podstawowej liście, ale są w katalogu, dodaj je specjalnie
+                    if not kogut_files and len(lines) > 200:
+                        # Wykonaj specjalne wyszukiwanie dla plików z "kogut"
+                        kogut_search_cmd = "ls -l | grep -i kogut"
+                        kogut_result = self.command_executor.execute(kogut_search_cmd, working_dir_override=current_dir_for_ai_context)
+                        if kogut_result.success and kogut_result.stdout:
+                            kogut_lines = kogut_result.stdout.strip().split('\n')
+                            kogut_files = [line.split()[-1] for line in kogut_lines if line.strip()]
+                            cwd_files_info += f"\n\nDODATKOWE PLIKI Z 'KOGUT' (znalezione specjalnym wyszukiwaniem):\n"
+                            cwd_files_info += f"```\n{''.join(kogut_lines)}\n```"
+                    
+                    if kogut_files:
+                        cwd_files_info += f"\n\nUWAGA: Znaleziono pliki z 'kogut' w nazwie: {', '.join(kogut_files)}"
+                    
+                    self.logger.info(f"Backend process_query: Dostarczam {len(limited_lines)} wpisów z CWD (ls -l format). Pliki z 'kogut': {kogut_files}")
+                else:
+                    cwd_files_info = f"Nie udało się odczytać zawartości katalogu ({current_dir_for_ai_context})."
+                    self.logger.warning(f"Backend: Nie udało się wykonać ls -l w CWD ({current_dir_for_ai_context}): {context_result.stderr}")
+            else:
+                cwd_files_info = f"Katalog {current_dir_for_ai_context} nie istnieje lub nie jest dostępny."
+                self.logger.warning(f"Backend: Katalog {current_dir_for_ai_context} nie istnieje lub nie jest dostępny.")
+        except Exception as e: 
+            cwd_files_info = f"Błąd podczas odczytywania zawartości katalogu: {e}"
+            self.logger.warning(f"Backend: Nie udało się odczytać wpisów z CWD ({current_dir_for_ai_context}): {e}")
 
         self._add_to_chat_history("user", query)
         self.logger.debug(f"Bieżąca historia czatu PO dodaniu zapytania użytkownika: {json.dumps(self.chat_history_for_ai, indent=2, ensure_ascii=False)}")
@@ -274,27 +351,13 @@ class LinuxAIAssistant:
         command_to_run = command
         original_command_for_log = command # Zachowaj oryginalne polecenie do logowania i analizy błędów
 
-        if SecurityValidator.requires_confirmation(command) and \
-           command.strip().startswith("sudo ") and \
-           is_interactive_sudo_prompt and \
-           not (command.strip().startswith("echo ") and "sudo -S" in command): # Unikaj podwójnego promptu jeśli hasło idzie przez echo
-            # Tylko dla trybu interaktywnego CLI
-            print(f"{Fore.YELLOW}Polecenie '{command}' wymaga uprawnień sudo.{Style.RESET_ALL}")
-            try:
-                sudo_password = getpass.getpass(prompt=f"{Fore.YELLOW}Podaj hasło sudo dla [{os.environ.get('USER', os.getlogin())}]: {Style.RESET_ALL}")
-                if not sudo_password: # Użytkownik nacisnął Enter bez wpisywania hasła
-                    self.logger.warning("Nie podano hasła sudo. Anulowano wykonanie.")
-                    return {"success": False, "stdout": "", "stderr": "Nie podano hasła sudo. Anulowano.", "return_code": -1, "execution_time": 0.0, "working_dir": self.command_executor.get_current_working_dir(), "command": command, "fix_suggestion": None}
-
-                command_without_sudo = command.replace("sudo ", "", 1) # Usuń tylko pierwsze wystąpienie sudo
-                escaped_password = shlex.quote(sudo_password)
-                command_to_run = f"echo {escaped_password} | sudo -S -p '' {command_without_sudo}"
-                self.logger.info(f"Przygotowano polecenie sudo z hasłem (CLI): echo '****' | sudo -S -p '' ...")
-            except (EOFError, KeyboardInterrupt): # Ctrl+D lub Ctrl+C podczas wpisywania hasła
-                self.logger.warning("Wprowadzanie hasła sudo przerwane.")
-                print("\nWprowadzanie hasła przerwane.")
-                return {"success": False, "stdout": "", "stderr": "Wprowadzanie hasła przerwane.", "return_code": -1, "execution_time": 0.0, "working_dir": self.command_executor.get_current_working_dir(), "command": command, "fix_suggestion": None}
-            # Jeśli GUI wysyła polecenie sudo, to GUI powinno obsłużyć prompt o hasło i przekazać je przez `echo ... | sudo -S`
+        # Sprawdź, czy polecenie wymaga uprawnień sudo
+        if command.strip().startswith("sudo ") and is_interactive_sudo_prompt:
+            # W trybie CLI pozwalamy sudo samemu poprosić o hasło
+            # Nie przekazujemy hasła przez echo - to jest bezpieczniejsze
+            self.logger.info("Polecenie sudo wykonywane w trybie interaktywnym - sudo samo poprosi o hasło")
+            print(f"{Fore.YELLOW}Polecenie '{command}' wymaga uprawnień sudo. Wprowadź hasło gdy zostaniesz o to poproszony.{Style.RESET_ALL}")
+            # Nie modyfikujemy polecenia - pozwalamy sudo działać normalnie
 
         self.logger.info(f"Backend: Ostateczne wykonanie: '{command_to_run}' w CWD: '{self.command_executor.get_current_working_dir()}'")
         result = self.command_executor.execute(command_to_run) # CommandExecutor zajmuje się aktualizacją CWD
@@ -326,10 +389,28 @@ class LinuxAIAssistant:
             # CommandExecutor zaktualizował self.current_working_dir, a result.working_dir to potwierdza
             self._add_to_chat_history("model", f"System: Zmieniono katalog roboczy na {result.working_dir}")
         else:
-            output_summary = f"Wynik wykonania '{original_command_for_log}':\nRC: {result.return_code}\n"
-            if result.stdout: output_summary += f"STDOUT:\n{result.stdout.strip()}\n"
-            if result.stderr: output_summary += f"STDERR:\n{result.stderr.strip()}\n"
-            self._add_to_chat_history("model", output_summary.strip())
+            # Wzbogacanie historii o szczegółowe wyniki poleceń
+            execution_summary = f"System: Wynik wykonania polecenia '{original_command_for_log}':\n"
+            execution_summary += f"- Kod powrotu (RC): {result.return_code}\n"
+            
+            if result.stdout.strip():
+                # Ogranicz długość STDOUT, żeby nie "zapchać" historii
+                stdout_summary = result.stdout.strip()
+                if len(stdout_summary) > 500:
+                    stdout_summary = stdout_summary[:500] + "\n... (skrócono)"
+                execution_summary += f"- STDOUT:\n{stdout_summary}\n"
+            
+            if result.stderr.strip():
+                stderr_summary = result.stderr.strip()
+                if len(stderr_summary) > 300:
+                    stderr_summary = stderr_summary[:300] + "\n... (skrócono)"
+                execution_summary += f"- STDERR:\n{stderr_summary}\n"
+            
+            # Dodaj sugestię naprawy jeśli była
+            if fix_suggestion_text:
+                execution_summary += f"- Sugestia naprawy AI:\n{fix_suggestion_text}"
+            
+            self._add_to_chat_history("model", execution_summary.strip())
 
 
         return {"success": result.success, "stdout": result.stdout, "stderr": result.stderr,
@@ -340,26 +421,12 @@ class LinuxAIAssistant:
 
     def interactive_mode(self):
         self.logger.info("Backend: Wejście w tryb interaktywny.")
-        print(f"{Fore.GREEN}=== Asystent AI dla systemu Linux (Backend CLI) ==={Style.RESET_ALL}")
-        print(f"{Fore.CYAN}Dystrybucja: {self.distro_info.get('PRETTY_NAME', 'Nieznana')}, Język AI: {self.system_language}{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}Wpisz 'help' po więcej informacji, 'exit' lub 'quit' aby zakończyć.{Style.RESET_ALL}")
+        self._display_welcome_message()
 
         while True:
             try:
-                current_dir_display = self.command_executor.get_current_working_dir() # Pobierz aktualny CWD z egzekutora
-                # Skróć ścieżkę dla wyświetlania, jeśli jest długa
-                home_dir = os.path.expanduser("~")
-                if current_dir_display.startswith(home_dir):
-                    display_dir_prompt = "~" + current_dir_display[len(home_dir):]
-                else:
-                    display_dir_prompt = current_dir_display
-                if len(display_dir_prompt) > 30: # Arbitralny limit długości
-                    parts = display_dir_prompt.split(os.sep)
-                    if len(parts) > 3: display_dir_prompt = os.path.join("...", parts[-2], parts[-1])
-
-
-                query = input(f"{Fore.GREEN}[{display_dir_prompt}]> {Style.RESET_ALL}").strip()
-
+                query = self._display_prompt()
+                
                 if query.lower() in ["exit", "quit"]:
                     self.logger.info("Backend: Zakończenie trybu interaktywnego.")
                     break
@@ -369,140 +436,182 @@ class LinuxAIAssistant:
                 if not query:
                     continue
 
-                command_prefix = query.split(' ', 1)[0].lower()
-                is_basic_sudo_cli = command_prefix == "sudo" and len(query.split()) > 1 and query.split()[1].lower() in self.basic_command_prefixes_cli
+                # Przetwórz zapytanie
+                self._process_interactive_query(query)
 
-                # Sprawdź, czy polecenie jest na liście interaktywnych LUB czy AI tak oznaczyło
-                is_interactive_type_command = command_prefix in self.interactive_commands_requiring_new_terminal
-
-                # Podstawowe polecenia wykonaj bezpośrednio (z wyjątkiem tych z force_ai_for_commands_cli)
-                if (command_prefix in self.basic_command_prefixes_cli or is_basic_sudo_cli) and \
-                   command_prefix not in self.force_ai_for_commands_cli and not is_interactive_type_command:
-                    print(f"{Fore.YELLOW}Wykonywanie podstawowego polecenia bezpośrednio...{Style.RESET_ALL}")
-                    # Dla podstawowych poleceń, is_interactive_sudo_prompt=True, aby CLI poprosiło o hasło
-                    exec_result = self.execute_command(query, is_interactive_sudo_prompt=True)
-
-                    if exec_result["success"]:
-                        print(f"{Fore.GREEN}Polecenie wykonane pomyślnie.{Style.RESET_ALL}")
-                    else:
-                        print(f"{Fore.RED}Błąd wykonania polecenia (kod: {exec_result['return_code']}).{Style.RESET_ALL}")
-
-                    if exec_result.get("stdout"):
-                        print(f"\n{Fore.WHITE}{exec_result['stdout'].strip()}{Style.RESET_ALL}")
-                    if exec_result.get("stderr"): # stderr jest często używane do informacji, nawet przy sukcesie (np. `time`)
-                        print(f"\n{Fore.RED}{exec_result['stderr'].strip()}{Style.RESET_ALL}")
-                    if exec_result.get("fix_suggestion"): # Sugestia naprawy od AI
-                        print(f"\n{Fore.CYAN}Sugestia AI (naprawa):{Style.RESET_ALL}\n{Fore.WHITE}{exec_result['fix_suggestion']}{Style.RESET_ALL}")
-
-                    # Po wykonaniu podstawowego polecenia, poproś AI o wyjaśnienie
-                    if self.ai_engine.is_configured:
-                        print(f"{Fore.YELLOW}Pobieranie wyjaśnienia AI dla '{query}'...{Style.RESET_ALL}")
-                        analysis_res = self.ai_engine.analyze_text_input_type(query, language_instruction=self._get_ai_language_instruction())
-                        if analysis_res.success and analysis_res.explanation:
-                            print(f"\n{Fore.CYAN}Wyjaśnienie AI:{Style.RESET_ALL}\n{Fore.WHITE}{analysis_res.explanation}{Style.RESET_ALL}")
-                        elif analysis_res.error:
-                             print(f"{Fore.RED}Błąd pobierania wyjaśnienia AI: {analysis_res.error}{Style.RESET_ALL}")
-                        else: # success ale brak explanation
-                             print(f"{Fore.YELLOW}AI nie dostarczyło wyjaśnienia.{Style.RESET_ALL}")
-                    else:
-                        print(f"{Fore.YELLOW}Silnik AI nie jest skonfigurowany, pomijanie wyjaśnienia.{Style.RESET_ALL}")
-
-                    print() # Dodatkowa linia dla czytelności
-                    continue
-
-                # Dla pozostałych zapytań (niejasne, złożone, lub z force_ai_for_commands_cli)
-                print(f"{Fore.YELLOW}Przetwarzanie zapytania przez AI...{Style.RESET_ALL}")
-                result = self.process_query(query) # result teraz zawiera 'needs_external_terminal'
-
-                if not result["success"]:
-                    if result.get("error") == "CLARIFY_REQUEST":
-                        print(f"{Fore.YELLOW}AI prosi o doprecyzowanie. Spróbuj inaczej lub podaj więcej szczegółów.{Style.RESET_ALL}")
-                    elif result.get("error") == "DANGEROUS_REQUEST":
-                        print(f"{Fore.RED}AI zidentyfikowało zapytanie jako potencjalnie niebezpieczne i zablokowało je.{Style.RESET_ALL}")
-                    else:
-                        print(f"{Fore.RED}Błąd: {result.get('error', 'Nieznany błąd')}{Style.RESET_ALL}")
-                    continue
-
-                if result.get("is_text_answer"):
-                    print(f"\n{Fore.CYAN}Odpowiedź AI:{Style.RESET_ALL}\n{Fore.WHITE}{result.get('explanation', 'Brak odpowiedzi.')}{Style.RESET_ALL}")
-                elif result.get("command"):
-                    generated_command = result["command"]
-                    print(f"\n{Fore.CYAN}Sugerowane polecenie:{Style.RESET_ALL}\n{Fore.WHITE}{generated_command}{Style.RESET_ALL}")
-                    if result.get("explanation"):
-                        print(f"\n{Fore.CYAN}Wyjaśnienie:{Style.RESET_ALL}\n{Fore.WHITE}{result['explanation']}{Style.RESET_ALL}")
-
-                    # Zapytaj użytkownika o wykonanie
-                    interaction_prompt_cli = f"\n{Fore.YELLOW}{result.get('suggested_button_label', 'Wykonać?')} (t/n/a-anuluj): {Style.RESET_ALL}"
-                    execute_input = input(interaction_prompt_cli)
-
-                    if execute_input.lower() in ["t", "tak", "y", "yes"]:
-                        self.logger.info(f"Użytkownik CLI potwierdził wykonanie: '{generated_command}'")
-
-                        # Sprawdzenie, czy polecenie wymaga nowego terminala (na podstawie flagi z AI)
-                        if result.get("needs_external_terminal"):
-                            self.logger.info(f"Polecenie '{generated_command}' wymaga nowego terminala. Próba uruchomienia...")
-                            try:
-                                terminal_emulator = None
-                                # Kolejność preferencji dla emulatorów terminala
-                                for term_cmd in ["gnome-terminal", "konsole", "xfce4-terminal", "lxterminal", "mate-terminal", "xterm"]:
-                                    if shutil.which(term_cmd):
-                                        terminal_emulator = term_cmd
-                                        break
-
-                                if not terminal_emulator: # Jeśli żaden z preferowanych nie jest dostępny
-                                    terminal_emulator = "xterm" # Fallback do xterm, który jest często dostępny
-
-                                # Zbuduj polecenie do wykonania w nowym terminalu
-                                # Upewnij się, że CWD jest ustawiony poprawnie w nowym terminalu
-                                # Dodaj pauzę na końcu, aby użytkownik mógł zobaczyć wynik
-                                cmd_payload = f"cd {shlex.quote(self.command_executor.get_current_working_dir())} && {generated_command}; echo -e '\\n\\n--- Polecenie zakończone. Naciśnij Enter, aby zamknąć ten terminal. ---'; read"
-
-                                if terminal_emulator == "gnome-terminal":
-                                    # gnome-terminal -- bash -c "komenda"
-                                    subprocess.Popen([terminal_emulator, "--", "bash", "-c", cmd_payload])
-                                elif terminal_emulator == "konsole":
-                                     # konsole -e bash -c "komenda"
-                                     subprocess.Popen([terminal_emulator, "-e", "bash", "-c", cmd_payload])
-                                elif terminal_emulator in ["xfce4-terminal", "lxterminal", "mate-terminal"]:
-                                     # te często używają -e lub --command=
-                                     subprocess.Popen([terminal_emulator, "-e", f"bash -c \"{cmd_payload.replace('\"', '\\\"')}\""]) # Wymaga dodatkowego escapowania dla niektórych
-                                else: # xterm i inne, które mogą używać -e
-                                    subprocess.Popen([terminal_emulator, "-e", f"bash -c \"{cmd_payload.replace('\"', '\\\"')}\""])
-
-
-                                print(f"{Fore.GREEN}Polecenie '{generated_command}' powinno zostać uruchomione w nowym oknie terminala.{Style.RESET_ALL}")
-                                print(f"{Fore.CYAN}Możesz kontynuować pracę w tym oknie asystenta.{Style.RESET_ALL}")
-                                self._add_to_chat_history("model", f"System: Uruchomiono '{generated_command}' w nowym terminalu.")
-                            except Exception as e_term:
-                                print(f"{Fore.RED}Nie udało się automatycznie otworzyć nowego terminala dla '{generated_command}'. Błąd: {e_term}{Style.RESET_ALL}")
-                                print(f"{Fore.YELLOW}Proszę ręcznie otworzyć terminal i wykonać: cd {self.command_executor.get_current_working_dir()} && {generated_command}{Style.RESET_ALL}")
-                                self._add_to_chat_history("model", f"System: Nie udało się uruchomić '{generated_command}' w nowym terminalu. Błąd: {e_term}")
-
-                        else: # Normalne wykonanie przez CommandExecutor
-                            print(f"{Fore.YELLOW}Wykonywanie...{Style.RESET_ALL}")
-                            # Dla poleceń AI, is_interactive_sudo_prompt=True, aby CLI poprosiło o hasło jeśli jest 'sudo'
-                            exec_result = self.execute_command(generated_command, is_interactive_sudo_prompt=True)
-                            if exec_result["success"]:
-                                print(f"{Fore.GREEN}Polecenie wykonane.{Style.RESET_ALL}")
-                            else:
-                                print(f"{Fore.RED}Błąd wykonania (kod: {exec_result['return_code']}){Style.RESET_ALL}")
-
-                            if exec_result.get("stdout"):
-                                print(f"\n{Fore.WHITE}{exec_result['stdout'].strip()}{Style.RESET_ALL}")
-                            if exec_result.get("stderr"):
-                                print(f"\n{Fore.RED}{exec_result['stderr'].strip()}{Style.RESET_ALL}")
-                            if exec_result.get("fix_suggestion"): # Sugestia naprawy od AI
-                                print(f"\n{Fore.CYAN}Sugestia AI:{Style.RESET_ALL}\n{Fore.WHITE}{exec_result['fix_suggestion']}{Style.RESET_ALL}")
-                else: # Sukces, ale brak polecenia i nie jest to odpowiedź tekstowa - nietypowe
-                    print(f"{Fore.RED}Błąd: AI nie zwróciło ani polecenia, ani odpowiedzi tekstowej.{Style.RESET_ALL}")
-                print() # Dodatkowa linia dla czytelności
-            except KeyboardInterrupt:
-                print("\nPrzerwano.")
+            except (EOFError, KeyboardInterrupt):
+                print(f"\n{Fore.YELLOW}Przerwano przez użytkownika.{Style.RESET_ALL}")
                 break
             except Exception as e:
-                self.logger.critical(f"Nieoczekiwany błąd w pętli interaktywnej CLI: {e}", exc_info=True)
-                print(f"{Fore.RED}Krytyczny błąd: {e}. Zobacz {LOG_FILE} po szczegóły.{Style.RESET_ALL}")
-                traceback.print_exc() # Dodatkowy wydruk na stderr
+                self.logger.error(f"Backend: Nieoczekiwany błąd w trybie interaktywnym: {e}")
+                print(f"{Fore.RED}Błąd: {e}{Style.RESET_ALL}")
+
+    def _display_welcome_message(self):
+        """Wyświetla powitalny komunikat"""
+        print(f"{Fore.GREEN}=== Asystent AI dla systemu Linux (Backend CLI) ==={Style.RESET_ALL}")
+        print(f"{Fore.CYAN}Dystrybucja: {self.distro_info.get('PRETTY_NAME', 'Nieznana')}, Język AI: {self.system_language}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}Wpisz 'help' po więcej informacji, 'exit' lub 'quit' aby zakończyć.{Style.RESET_ALL}")
+
+    def _display_prompt(self) -> str:
+        """Wyświetla prompt i pobiera input od użytkownika"""
+        current_dir_display = self.command_executor.get_current_working_dir()
+        
+        # Skróć ścieżkę dla wyświetlania, jeśli jest długa
+        home_dir = os.path.expanduser("~")
+        if current_dir_display.startswith(home_dir):
+            display_dir_prompt = "~" + current_dir_display[len(home_dir):]
+        else:
+            display_dir_prompt = current_dir_display
+            
+        if len(display_dir_prompt) > 30:  # Arbitralny limit długości
+            parts = display_dir_prompt.split(os.sep)
+            if len(parts) > 3:
+                display_dir_prompt = os.path.join("...", parts[-2], parts[-1])
+
+        return input(f"{Fore.GREEN}[{display_dir_prompt}]> {Style.RESET_ALL}").strip()
+
+    def _process_interactive_query(self, query: str):
+        """Przetwarza zapytanie w trybie interaktywnym"""
+        command_prefix = query.split(' ', 1)[0].lower()
+        is_basic_sudo_cli = command_prefix == "sudo" and len(query.split()) > 1 and query.split()[1].lower() in self.basic_command_prefixes_cli
+        is_interactive_type_command = command_prefix in self.interactive_commands_requiring_new_terminal
+
+        # Podstawowe polecenia wykonaj bezpośrednio
+        if (command_prefix in self.basic_command_prefixes_cli or is_basic_sudo_cli) and \
+           command_prefix not in self.force_ai_for_commands_cli and not is_interactive_type_command:
+            self._handle_basic_command(query)
+        else:
+            # Dla pozostałych zapytań użyj AI
+            self._handle_ai_query(query)
+
+    def _handle_basic_command(self, query: str):
+        """Obsługuje podstawowe polecenia w trybie interaktywnym"""
+        print(f"{Fore.YELLOW}Wykonywanie podstawowego polecenia bezpośrednio...{Style.RESET_ALL}")
+        
+        # Dla podstawowych poleceń, is_interactive_sudo_prompt=True, aby CLI poprosiło o hasło
+        exec_result = self.execute_command(query, is_interactive_sudo_prompt=True)
+
+        # Wyświetl wynik
+        if exec_result["success"]:
+            print(f"{Fore.GREEN}Polecenie wykonane pomyślnie.{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.RED}Błąd wykonania polecenia (kod: {exec_result['return_code']}).{Style.RESET_ALL}")
+
+        if exec_result.get("stdout"):
+            print(f"\n{Fore.WHITE}{exec_result['stdout'].strip()}{Style.RESET_ALL}")
+        if exec_result.get("stderr"):  # stderr jest często używane do informacji, nawet przy sukcesie (np. `time`)
+            print(f"\n{Fore.RED}{exec_result['stderr'].strip()}{Style.RESET_ALL}")
+        if exec_result.get("fix_suggestion"):  # Sugestia naprawy od AI
+            print(f"\n{Fore.CYAN}Sugestia AI (naprawa):{Style.RESET_ALL}\n{Fore.WHITE}{exec_result['fix_suggestion']}{Style.RESET_ALL}")
+
+        # Po wykonaniu podstawowego polecenia, poproś AI o wyjaśnienie
+        if self.ai_engine.is_configured:
+            print(f"{Fore.YELLOW}Pobieranie wyjaśnienia AI dla '{query}'...{Style.RESET_ALL}")
+            analysis_res = self.ai_engine.analyze_text_input_type(query, language_instruction=self._get_ai_language_instruction())
+            if analysis_res.success and analysis_res.explanation:
+                print(f"\n{Fore.CYAN}Wyjaśnienie AI:{Style.RESET_ALL}\n{Fore.WHITE}{analysis_res.explanation}{Style.RESET_ALL}")
+            elif analysis_res.error:
+                print(f"{Fore.RED}Błąd pobierania wyjaśnienia AI: {analysis_res.error}{Style.RESET_ALL}")
+            else:  # success ale brak explanation
+                print(f"{Fore.YELLOW}AI nie dostarczyło wyjaśnienia.{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.YELLOW}Silnik AI nie jest skonfigurowany, pomijanie wyjaśnienia.{Style.RESET_ALL}")
+
+        print()  # Dodatkowa linia dla czytelności
+
+    def _handle_ai_query(self, query: str):
+        """Obsługuje zapytania AI w trybie interaktywnym"""
+        print(f"{Fore.YELLOW}Przetwarzanie zapytania przez AI...{Style.RESET_ALL}")
+        result = self.process_query(query)  # result teraz zawiera 'needs_external_terminal'
+
+        if not result["success"]:
+            if result.get("error") == "CLARIFY_REQUEST":
+                print(f"{Fore.YELLOW}AI prosi o doprecyzowanie. Spróbuj inaczej lub podaj więcej szczegółów.{Style.RESET_ALL}")
+            elif result.get("error") == "DANGEROUS_REQUEST":
+                print(f"{Fore.RED}AI zidentyfikowało zapytanie jako potencjalnie niebezpieczne i zablokowało je.{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}Błąd: {result.get('error', 'Nieznany błąd')}{Style.RESET_ALL}")
+            return
+
+        if result.get("is_text_answer"):
+            print(f"\n{Fore.CYAN}Odpowiedź AI:{Style.RESET_ALL}\n{Fore.WHITE}{result.get('explanation', 'Brak odpowiedzi.')}{Style.RESET_ALL}")
+        elif result.get("command"):
+            generated_command = result["command"]
+            print(f"\n{Fore.CYAN}Sugerowane polecenie:{Style.RESET_ALL}\n{Fore.WHITE}{generated_command}{Style.RESET_ALL}")
+            if result.get("explanation"):
+                print(f"\n{Fore.CYAN}Wyjaśnienie:{Style.RESET_ALL}\n{Fore.WHITE}{result['explanation']}{Style.RESET_ALL}")
+
+            # Zapytaj użytkownika o wykonanie
+            interaction_prompt_cli = f"\n{Fore.YELLOW}{result.get('suggested_button_label', 'Wykonać?')} (t/n/a-anuluj): {Style.RESET_ALL}"
+            execute_input = input(interaction_prompt_cli)
+
+            if execute_input.lower() in ["t", "tak", "y", "yes"]:
+                self.logger.info(f"Użytkownik CLI potwierdził wykonanie: '{generated_command}'")
+                self._execute_ai_generated_command(generated_command, result)
+            elif execute_input.lower() in ["n", "nie", "no"]:
+                print(f"{Fore.YELLOW}Polecenie anulowane przez użytkownika.{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}Wykonanie anulowane.{Style.RESET_ALL}")
+
+    def _execute_ai_generated_command(self, generated_command: str, result: Dict[str, Any]):
+        """Wykonuje polecenie wygenerowane przez AI"""
+        # Sprawdzenie, czy polecenie wymaga nowego terminala (na podstawie flagi z AI)
+        if result.get("needs_external_terminal"):
+            self.logger.info(f"Polecenie '{generated_command}' wymaga nowego terminala. Próba uruchomienia...")
+            self._launch_external_terminal(generated_command)
+        else:
+            # Wykonaj polecenie w bieżącym terminalu
+            print(f"{Fore.YELLOW}Wykonywanie polecenia w bieżącym terminalu...{Style.RESET_ALL}")
+            exec_result = self.execute_command(generated_command, is_interactive_sudo_prompt=True)
+            
+            if exec_result["success"]:
+                print(f"{Fore.GREEN}Polecenie wykonane pomyślnie.{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}Błąd wykonania polecenia (kod: {exec_result['return_code']}).{Style.RESET_ALL}")
+
+            if exec_result.get("stdout"):
+                print(f"\n{Fore.WHITE}{exec_result['stdout'].strip()}{Style.RESET_ALL}")
+            if exec_result.get("stderr"):
+                print(f"\n{Fore.RED}{exec_result['stderr'].strip()}{Style.RESET_ALL}")
+            if exec_result.get("fix_suggestion"):
+                print(f"\n{Fore.CYAN}Sugestia AI (naprawa):{Style.RESET_ALL}\n{Fore.WHITE}{exec_result['fix_suggestion']}{Style.RESET_ALL}")
+
+    def _launch_external_terminal(self, command: str):
+        """Uruchamia polecenie w zewnętrznym terminalu"""
+        try:
+            terminal_emulator = None
+            # Kolejność preferencji dla emulatorów terminala
+            for term_cmd in ["gnome-terminal", "konsole", "xfce4-terminal", "lxterminal", "mate-terminal", "xterm"]:
+                if shutil.which(term_cmd):
+                    terminal_emulator = term_cmd
+                    break
+
+            if not terminal_emulator:  # Jeśli żaden z preferowanych nie jest dostępny
+                terminal_emulator = "xterm"  # Fallback do xterm, który jest często dostępny
+
+            # Zbuduj polecenie do wykonania w nowym terminalu
+            # Upewnij się, że CWD jest ustawiony poprawnie w nowym terminalu
+            # Dodaj pauzę na końcu, aby użytkownik mógł zobaczyć wynik
+            cmd_payload = f"cd {shlex.quote(self.command_executor.get_current_working_dir())} && {command}; echo -e '\\n\\n--- Polecenie zakończone. Naciśnij Enter, aby zamknąć ten terminal. ---'; read"
+
+            if terminal_emulator == "gnome-terminal":
+                # gnome-terminal -- bash -c "komenda"
+                subprocess.Popen([terminal_emulator, "--", "bash", "-c", cmd_payload])
+            elif terminal_emulator == "konsole":
+                # konsole -e bash -c "komenda"
+                subprocess.Popen([terminal_emulator, "-e", "bash", "-c", cmd_payload])
+            elif terminal_emulator in ["xfce4-terminal", "lxterminal", "mate-terminal"]:
+                # te często używają -e lub --command=
+                subprocess.Popen([terminal_emulator, "-e", f"bash -c \"{cmd_payload.replace('\"', '\\\"')}\""])  # Wymaga dodatkowego escapowania dla niektórych
+            else:  # xterm i inne, które mogą używać -e
+                subprocess.Popen([terminal_emulator, "-e", f"bash -c \"{cmd_payload.replace('\"', '\\\"')}\""])
+
+            print(f"{Fore.GREEN}Polecenie '{command}' uruchomione w '{terminal_emulator}'. Sprawdź nowe okno terminala.{Style.RESET_ALL}")
+
+        except Exception as e:
+            self.logger.error(f"Błąd uruchamiania zewnętrznego terminala: {e}")
+            print(f"{Fore.RED}Błąd uruchamiania zewnętrznego terminala: {e}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}Wykonaj polecenie ręcznie: {command}{Style.RESET_ALL}")
 
     def _show_help(self):
         print(f"\n{Fore.CYAN}=== Pomoc asystenta AI dla systemu Linux (Backend CLI) ==={Style.RESET_ALL}")

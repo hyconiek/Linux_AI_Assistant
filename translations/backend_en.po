@@ -1,0 +1,824 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-05-27 02:24+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:104
+#, python-brace-format
+msgid "WARNING: Cannot open log file '{file}': {error}. File logging disabled."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:130
+msgid "LinuxAIAssistant (backend instance) logger initialized."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:137
+#, python-brace-format
+msgid ""
+"Backend: Initial working directory for CommandExecutor set to: '{dir}' by "
+"argument."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:139
+#, python-brace-format
+msgid ""
+"Backend: Initial working_dir argument '{dir}' is not a valid directory. "
+"Using default executor CWD."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:141
+msgid "Backend: No initial_working_dir argument. Using default executor CWD."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:145
+#, python-brace-format
+msgid "Backend: System language for AI prompts set to: {lang}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:152
+#, python-brace-format
+msgid "Backend: Detected distribution: {distro}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:153
+#, python-brace-format
+msgid "Backend: Current working directory after initialization: {dir}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:168
+msgid ""
+"ODPOWIADAJ ZAWSZE W JĘZYKU POLSKIM. Wyjaśnienie polecenia, pytania "
+"doprecyzowujące, sugestie naprawcze i wszelkie inne teksty MUSZĄ być po "
+"polsku."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:170
+msgid ""
+"ODPOVÍDEJ VŽDY ČESKY. Vysvětlení příkazu, doplňující otázky, návrhy oprav a "
+"veškeré další texty MUSÍ být v češtině."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:175
+msgid ""
+"Respond always in English. The command explanation, clarification questions, "
+"fix suggestions, and any other text MUST be in English."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:181
+msgid " ... (truncated)"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:190
+#, python-brace-format
+msgid "Backend process_query: Query='{query}', CWD for AI context='{cwd}'"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:191
+#, python-brace-format
+msgid "Current chat history BEFORE adding query: {history}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:199
+#, python-brace-format
+msgid ""
+"Backend process_query: Providing first 100 entries from CWD ({total} total)."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:201
+#, python-brace-format
+msgid "Backend process_query: Providing {count} entries from CWD."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:203
+#, python-brace-format
+msgid "Backend: Failed to read entries from CWD ({dir}): {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:206
+#, python-brace-format
+msgid "Current chat history AFTER adding user query: {history}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:209
+msgid "Backend: AI engine is not configured in process_query."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:210
+msgid "AI engine is not configured."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:219
+#, python-brace-format
+msgid "AI requested file search. Pattern: '{pattern}', Message: '{message}'"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:224
+#, python-brace-format
+msgid "Executing search command: {command} in {dir}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:229
+#, python-brace-format
+msgid "Files found ({count}): {files}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:231
+#, python-brace-format
+msgid "File search failed or nothing found. Stderr: {stderr}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:233
+#, python-brace-format
+msgid ""
+"System: Search results for pattern '{pattern}' in '{dir}' (and 1 level "
+"below, ignoring hidden and .git): "
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:235
+#, python-brace-format
+msgid "Found: {files}{more}."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:237
+msgid "Nothing found."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:240
+msgid ""
+"Calling AI again with original query and updated file list and search "
+"information in history."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:259
+msgid "Failed to process query"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:261
+msgid "System: AI requested clarification."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:262
+msgid "System: AI identified query as dangerous."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:263
+#, python-brace-format
+msgid "System: Error from AI - {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:266
+msgid "AI provided a text answer."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:286
+#, python-brace-format
+msgid ""
+"Backend execute_command: Command='{command}', "
+"sudo_interactive={is_interactive_sudo_prompt}, CWD='{cwd}'"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:300
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:302
+msgid "No sudo password provided. Execution cancelled."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:307
+msgid ""
+"Prepared sudo command with password (CLI): echo '****' | sudo -S -p '' ..."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:309
+msgid "Sudo password entry interrupted."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:310
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:311
+msgid "Password entry interrupted."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:313
+#, python-brace-format
+msgid "Backend: Final execution of: '{command_to_run}' in CWD: '{cwd}'"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:319
+#, python-brace-format
+msgid ""
+"Backend: Command '{original_command_for_log}' failed (RC: {rc}). Analyzing "
+"error..."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:331
+#, python-brace-format
+msgid ""
+"System: Error analysis for '{command}':\n"
+"{suggestion}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:336
+#, python-brace-format
+msgid "System: Changed working directory to {dir}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:345
+msgid "Backend: Entering interactive mode."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:348
+msgid "Unknown"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:365
+msgid "Backend: Exiting interactive mode."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:381
+#, python-brace-format
+msgid "Unexpected error in CLI interactive loop: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:388
+msgid ""
+"The assistant processes natural language queries and generates commands."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:389
+msgid ""
+"Basic Linux commands (e.g., ls, cd, pwd) are executed directly, then AI "
+"provides an explanation."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:390
+msgid ""
+"More complex queries or those involving system modifications are analyzed by "
+"AI."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:392
+msgid "- Show all files in the home directory"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:393
+msgid "- Install firefox"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:394
+msgid "- What are my network devices?"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:395
+msgid "- How to check disk usage?"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:396
+msgid "- Are there any .log files here?"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:403
+msgid "Linux AI Assistant (Backend)"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:404
+msgid "Query for the assistant"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:405
+msgid "Automatically execute command (used by GUI)"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:406
+msgid "Return result in JSON format (used by GUI)"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:407
+msgid "Initial working directory for the backend session (used by GUI)"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:410
+#, python-brace-format
+msgid ""
+"Backend started with arguments: query='{query}', execute={execute}, "
+"json={json_mode}, working_dir='{wd}'"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:422
+msgid ""
+"Critical error: AI Engine (GeminiIntegration) not configured. Check "
+"GOOGLE_API_KEY and logs."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/backend_cli.py:445
+#, python-brace-format
+msgid "Unhandled exception at top level: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:52
+#, python-brace-format
+msgid "Dangerous pattern '{pattern}' matched for command: '{command}'"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:67
+#, python-brace-format
+msgid ""
+"Command '{command}' was identified as potentially dangerous and blocked."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:86
+#, python-brace-format
+msgid "Error reading /etc/os-release in DistributionDetector: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:124
+#, python-brace-format
+msgid "CommandExecutor initialized. Initial CWD: {cwd}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:129
+#, python-brace-format
+msgid "Executing command='{command}' in effective_cwd='{cwd}'"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:185
+#, python-brace-format
+msgid "Changed directory to {dir}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:188
+#, python-brace-format
+msgid ""
+"'cd' command to '{target}' resulted in non-directory path '{path}' despite "
+"rc=0. CWD not changed by special 'cd' logic."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:206
+#, python-brace-format
+msgid "Compound command with 'cd' succeeded. New CWD from 'pwd': {cwd}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:208
+#, python-brace-format
+msgid ""
+"Compound command with 'cd' succeeded, but 'pwd' check yielded non-dir: {dir}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:210
+#, python-brace-format
+msgid ""
+"Error trying to determine CWD after compound command '{command}': {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:216
+#, python-brace-format
+msgid ""
+"Execution Result: Success={success}, RC={rc}, Result CWD: {result_cwd}, "
+"Executor CWD after exec: {exec_cwd}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:219
+#, python-brace-format
+msgid ""
+"Mismatch: Executor CWD is {exec_cwd} but result CWD is {result_cwd} for a "
+"'cd' command that succeeded. This might indicate an issue in CWD update "
+"logic for compound commands if it wasn't updated by '&& pwd'."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:231
+#, python-brace-format
+msgid ""
+"CommandExecutor: Working directory explicitly changing from '{old_dir}' to "
+"'{new_dir}'"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:235
+#, python-brace-format
+msgid "CommandExecutor: Working directory already set to '{dir}'. No change."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:237
+#, python-brace-format
+msgid ""
+"CommandExecutor: Failed to set working directory to non-existent path: {path}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:245
+#, python-brace-format
+msgid "Attempt to execute dangerous command in interactive mode: {command}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:255
+#, python-brace-format
+msgid ""
+"Starting interactive process: '{command}' (original CWD for Popen: {cwd})"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:264
+#, python-brace-format
+msgid "Error starting interactive process: {command}, {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:276
+#, python-brace-format
+msgid "Process (PID: {pid}) was killed (kill)."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:278
+#, python-brace-format
+msgid "Process (PID: {pid}) was terminated (terminate)."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:280
+#, python-brace-format
+msgid "Process (PID: {pid}) was already terminated."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:283
+#, python-brace-format
+msgid "Error killing process (PID: {pid}): {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:294
+msgid "Starting CommandExecutor __main__ tests..."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:298
+#, python-brace-format
+msgid "Initial PWD from executor: {dir}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:300
+msgid "Test: Simple cd"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:302
+#, python-brace-format
+msgid ""
+"CD /tmp result: Success={success}, RC={rc}, Executor CWD: {exec_cwd}, Result "
+"CWD: {result_cwd}, Stdout: '{stdout}'"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:308
+msgid "Changed directory to /tmp"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:310
+msgid "Test: ls in new directory (/tmp)"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:312
+#, python-brace-format
+msgid ""
+"LS in /tmp result: Success={success}, Stdout: '{stdout}', Executor CWD: "
+"{exec_cwd}, Result CWD: {result_cwd}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:319
+msgid "Test: cd back to original directory"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:321
+#, python-brace-format
+msgid ""
+"CD back result: Success={success}, RC={rc}, Executor CWD: {exec_cwd}, Result "
+"CWD: {result_cwd}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:327
+msgid "Test: Compound command with cd"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:329
+#, python-brace-format
+msgid ""
+"Compound command result: Success={success}, RC={rc}, Stdout: '{stdout}', "
+"Executor CWD: {exec_cwd}, Result CWD: {result_cwd}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:336
+msgid "Test: Security validation"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:338
+#, python-brace-format
+msgid ""
+"Dangerous command result: Success={success}, RC={rc}, Stderr: '{stderr}'"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/command_executor.py:343
+msgid "All tests completed successfully"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:63
+msgid "Missing GOOGLE_API_KEY in environment variables!"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:68
+#, python-brace-format
+msgid "Gemini API client initialized. Default model set to: {model}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:70
+#, python-brace-format
+msgid "Error initializing Gemini API client (genai.Client): {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:77
+msgid "Empty API key provided"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:84
+#, python-brace-format
+msgid "Gemini API client initialized with provided key. Default model: {model}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:87
+#, python-brace-format
+msgid "Error initializing Gemini API client with provided key: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:117
+msgid "Google API client not configured."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:162
+#, python-brace-format
+msgid "Gemini: Raw response: {response}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:166
+#, python-brace-format
+msgid "Gemini response blocked (prompt_feedback). Reason: {reason}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:167
+#, python-brace-format
+msgid "Response blocked by AI (prompt): {reason}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:169
+msgid "Empty Gemini response (no candidates)."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:170
+msgid "Empty AI response (no candidates)."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:176
+#, python-brace-format
+msgid "Candidate generation stopped due to: {reason}."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:177
+#, python-brace-format
+msgid " Candidate blocked: {reason}."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:180
+#, python-brace-format
+msgid " Safety categories: {categories}."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:181
+#, python-brace-format
+msgid "AI generation error: {reason}.{safety_info}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:188
+msgid "No parts or text in Gemini response content."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:189
+msgid "No text content in AI response."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:198
+#, python-brace-format
+msgid "Query blocked by AI (detected from APIError): {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:199
+#, python-brace-format
+msgid "Query blocked by AI: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:200
+#, python-brace-format
+msgid ""
+"APIError exception (google.genai.errors) during Gemini communication: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:201
+#, python-brace-format
+msgid "Gemini API error (genai): {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:203
+#, python-brace-format
+msgid "Unknown exception during Gemini API communication: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:205
+#, python-brace-format
+msgid "Network error or Gemini service unavailable: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:207
+#, python-brace-format
+msgid "Gemini API call configuration error (TypeError): {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:208
+#, python-brace-format
+msgid "API exception: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:216
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:438
+msgid "Gemini model was not properly initialized."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:218
+#, python-brace-format
+msgid "Distribution: {id} {version}, Package manager: {pm}."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:223
+#, python-brace-format
+msgid "Current working directory: {dir}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:223
+msgid "Working directory unknown."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:224
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:440
+msgid "Respond in English."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:225
+msgid "No information about files/directories in CWD."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:230
+#, python-brace-format
+msgid ""
+"Available files and directories in current working directory ({dir}) (first "
+"{limit}): {files}, ..."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:233
+#, python-brace-format
+msgid ""
+"Available files and directories in current working directory ({dir}): "
+"{files}."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:236
+#, python-brace-format
+msgid "No files/directories in current working directory ({dir})."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:248
+msgid "No history."
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:250
+#, python-brace-format
+msgid ""
+"You are a Linux terminal expert. Your task is to help the user by generating "
+"an appropriate command OR answering a question about files in the "
+"directory.\n"
+"System context: {distro_context} {wd_context}\n"
+"{cwd_files_info}\n"
+"{lang_instr}\n"
+"\n"
+"Conversation history (if any):\n"
+"{formatted_history_for_prompt}\n"
+"\n"
+"RULES:\n"
+"1. If the user's query is a REQUEST FOR ACTION (e.g., \"show files\", "
+"\"install something\", \"delete file.txt\", \"brighten image.jpg\"), "
+"generate a command.\n"
+"   - If the user types a filename with a typo or wrong case, but there's a "
+"matching file in the CWD list (or from search history), use the correct name "
+"from the list in the command.\n"
+"   - If the user refers to a file mentioned earlier in the conversation "
+"history (e.g., \"this file\", \"the image\"), use that file's name in the "
+"command.\n"
+"   - Response format for commands:\n"
+"     FIRST a line with the command.\n"
+"     In the EXACT NEXT line the keyword \"EXPLANATION:\"\n"
+"     After \"EXPLANATION:\" a brief explanation of the command.\n"
+"     OPTIONALLY, if the command may require interaction (e.g., Y/N question "
+"without -y flag), in the NEXT line \"INTERACTION_COMMAND: suggested_response;"
+"Button Label\"\n"
+"     OR if the command is a fullscreen/interactive program (e.g., top, htop, "
+"nano, vim, less, man), in the NEXT line \"INTERACTION_TERMINAL: ;Run in new "
+"terminal\"\n"
+"     Example (installation with -y):\n"
+"       sudo apt install -y firefox\n"
+"       EXPLANATION: Installs Firefox, automatically confirming.\n"
+"     Example (installation without -y, suggestion for GUI):\n"
+"       sudo apt install gimp\n"
+"       EXPLANATION: Prepares GIMP installation, system will ask for "
+"confirmation.\n"
+"       INTERACTION_COMMAND: y;Install GIMP (confirm Y)\n"
+"     Example (top):\n"
+"       top\n"
+"       EXPLANATION: Shows real-time system process information.\n"
+"       INTERACTION_TERMINAL: ;Run in Terminal\n"
+"\n"
+"2. If the user's query is a QUESTION ABOUT FILES (e.g., \"are there any log "
+"files?\", \"what's in this directory?\"), answer directly.\n"
+"   - If you need more specific information about files that might not be in "
+"the CWD list, request a file search.\n"
+"   - Response format for file search requests:\n"
+"     FIRST a line with \"FILE_SEARCH: search_pattern\"\n"
+"     In the NEXT line \"SEARCH_MESSAGE: message explaining what you're "
+"looking for\"\n"
+"     Example:\n"
+"       FILE_SEARCH: *.log\n"
+"       SEARCH_MESSAGE: Looking for log files in the current directory.\n"
+"\n"
+"3. If the user's query is AMBIGUOUS or UNCLEAR, answer directly with "
+"clarification questions.\n"
+"   - Response format for clarification:\n"
+"     FIRST a line with \"CLARIFY_REQUEST\"\n"
+"     Then list numbered options for what the user might want.\n"
+"     Example:\n"
+"       CLARIFY_REQUEST\n"
+"       1. Do you want to search for files containing \"example\"?\n"
+"       2. Do you want to create a file named \"example.txt\"?\n"
+"       3. Do you want to edit an existing file with \"example\" in the "
+"name?\n"
+"\n"
+"4. If the user's query is DANGEROUS (e.g., \"delete all files\", \"rm -rf /"
+"\"), refuse to generate a command.\n"
+"   - Response format for dangerous queries:\n"
+"     FIRST a line with \"DANGEROUS_REQUEST\"\n"
+"     Then explain why it's dangerous and suggest safer alternatives.\n"
+"     Example:\n"
+"       DANGEROUS_REQUEST\n"
+"       The command \"rm -rf /\" would delete all files on your system. This "
+"is extremely dangerous and could render your system unusable. If you need to "
+"clean up disk space, I can suggest safer alternatives like finding large "
+"files or cleaning package caches.\n"
+"\n"
+"5. If the user's query is a GENERAL LINUX QUESTION not related to files or "
+"commands, answer directly.\n"
+"   - Response format for general questions: Just provide the answer as "
+"text.\n"
+"\n"
+"User query: {user_prompt}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:432
+#, python-brace-format
+msgid "Error in generate_command_with_explanation: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:433
+#, python-brace-format
+msgid "Error generating command: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:442
+#, python-brace-format
+msgid ""
+"You are a Linux terminal expert. Your task is to explain the given command "
+"in detail.\n"
+"\n"
+"{lang_instr}\n"
+"\n"
+"Provide a clear, concise explanation of what the command does, including:\n"
+"1. The purpose of the command\n"
+"2. What each option and parameter means\n"
+"3. Any potential risks or side effects\n"
+"4. Common use cases\n"
+"\n"
+"Command to explain: {command}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:478
+#, python-brace-format
+msgid "Error in generate_command_explanation: {error}"
+msgstr ""
+
+#: /home/krzysiek/Pobrane/l_a_t_a/linux_ai_terminal_assistant/src/modules/gemini_integration.py:479
+#, python-brace-format
+msgid "Error generating explanation: {error}"
+msgstr ""

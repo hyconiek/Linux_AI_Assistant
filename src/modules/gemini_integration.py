@@ -226,49 +226,73 @@ Kontekst systemu: {distro_context} {wd_context}
 Historia konwersacji (jeśli istnieje):
 {formatted_history_for_prompt}
 
+WAŻNE: Historia konwersacji zawiera nie tylko zapytania użytkownika i odpowiedzi AI, ale także szczegółowe wyniki wykonanych poleceń (stdout, stderr, kod powrotu). Wykorzystuj te informacje do zrozumienia kontekstu i udzielania bardziej precyzyjnych odpowiedzi. Na przykład:
+- Jeśli użytkownik pyta "usuń ten ostatni plik", sprawdź w historii jakie pliki były ostatnio wyświetlone
+- Jeśli polecenie się nie powiodło, sprawdź błąd w historii i zaproponuj poprawkę
+- Jeśli użytkownik pyta o zawartość pliku, sprawdź czy nie był już wcześniej wyświetlony
+
 ZASADY:
 1. Jeśli zapytanie użytkownika jest PROŚBĄ O WYKONANIE AKCJI (np. "pokaż pliki", "zainstaluj coś", "usuń plik.txt", "rozjaśnij obraz.jpg"), wygeneruj polecenie.
    - Jeśli użytkownik wpisze nazwę pliku z literówką lub złą wielkością liter, ale na liście plików z CWD (lub z historii wyszukiwania) jest pasujący plik, użyj poprawnej nazwy z listy w poleceniu.
    - Jeśli użytkownik odnosi się do pliku wspomnianego wcześniej w historii konwersacji (np. "ten plik", "obrazek"), użyj nazwy tego pliku w poleceniu.
-   - Format odpowiedzi dla polecenia:
-     NAJPIERW linia z poleceniem.
-     W DOKŁADNIE NASTĘPNEJ linii słowo kluczowe "WYJAŚNIENIE:"
-     Po "WYJAŚNIENIE:" krótkie wyjaśnienie polecenia.
-     OPCJONALNIE, jeśli polecenie może wymagać interakcji (np. pytanie T/N bez flagi -y), w NASTĘPNEJ linii "INTERAKCJA_POLECENIE: sugerowana_odpowiedź;Etykieta Przycisku"
-     LUB jeśli polecenie jest programem pełnoekranowym/interaktywnym (np. top, htop, nano, vim, less, man), w NASTĘPNEJ linii "INTERAKCJA_TERMINAL: ;Uruchom w nowym terminalu"
-     Przykład (instalacja z -y):
-       sudo apt install -y firefox
-       WYJAŚNIENIE: Instaluje Firefox, automatycznie potwierdzając.
-     Przykład (instalacja bez -y, sugestia dla GUI):
-       sudo apt install gimp
-       WYJAŚNIENIE: Przygotowuje instalację GIMP, system zapyta o potwierdzenie.
-       INTERAKCJA_POLECENIE: t;Zainstaluj GIMP (potwierdź T)
-     Przykład (top):
-       top
-       WYJAŚNIENIE: Wyświetla dynamiczny, rzeczywisty widok działających procesów.
-       INTERAKCJA_TERMINAL: ;Uruchom 'top' w terminalu
+   - Format odpowiedzi dla polecenia w JSON:
+     {{
+       "command": "polecenie_do_wykonania",
+       "explanation": "krótkie wyjaśnienie polecenia",
+       "is_interactive": false,
+       "interaction_suggestion": null
+     }}
+     LUB jeśli polecenie może wymagać interakcji (np. pytanie T/N bez flagi -y):
+     {{
+       "command": "polecenie_do_wykonania",
+       "explanation": "krótkie wyjaśnienie polecenia",
+       "is_interactive": true,
+       "interaction_suggestion": {{
+         "input": "t",
+         "button_label": "Zainstaluj (potwierdź T)"
+       }}
+     }}
+     LUB jeśli polecenie jest programem pełnoekranowym/interaktywnym (np. top, htop, nano, vim, less, man):
+     {{
+       "command": "polecenie_do_wykonania",
+       "explanation": "krótkie wyjaśnienie polecenia",
+       "is_interactive": false,
+       "needs_external_terminal": true
+     }}
+     LUB jeśli polecenie wymaga uprawnień sudo (np. sudo apt update, sudo systemctl restart):
+     {{
+       "command": "polecenie_do_wykonania",
+       "explanation": "krótkie wyjaśnienie polecenia",
+       "is_interactive": false,
+       "needs_external_terminal": true
+     }}
 
 2. Jeśli zapytanie użytkownika jest PYTANIEM O PLIKI W KATALOGU (np. "czy są tu jakieś pliki snap?", "gdzie jest plik X?", "dlaczego nie widziałeś pliku X?"):
    - Jeśli MOŻESZ odpowiedzieć na podstawie dostarczonej listy plików CWD i/lub informacji z historii (np. wyników poprzedniego wyszukiwania), odpowiedz tekstowo:
-     ODPOWIEDZ_TEKSTOWA:
-     Twoja odpowiedź...
+     {{
+       "is_text_answer": true,
+       "explanation": "Twoja odpowiedź..."
+     }}
    - Jeśli NIE MOŻESZ odpowiedzieć (np. pliku nie ma na skróconej liście, użytkownik pyta o coś, czego nie widać, a historia nie pomaga),
      a pytanie sugeruje, że plik MOŻE istnieć lub użytkownik pyta DLACZEGO czegoś nie widać, ZAMIAST odpowiadać "nie wiem",
      poproś o przeszukanie katalogu, zwracając:
-     SZUKAJ_PLIKOW: wzorzec_nazwy_pliku_do_wyszukania;komunikat_dla_uzytkownika_o_szukaniu
-     Przykład (użytkownik pyta o *.log, a nie ma ich na liście):
-       SZUKAJ_PLIKOW: *.log;Chwileczkę, przeszukuję katalog w poszukiwaniu plików .log...
-     Przykład (użytkownik pyta o konkretny plik 'clean_snap.sh'):
-       SZUKAJ_PLIKOW: clean_snap.sh;Zaraz sprawdzę, czy plik clean_snap.sh istnieje...
-     Przykład (użytkownik pyta ogólnie, czy jest "coś związanego ze snap"):
-       SZUKAJ_PLIKOW: *snap*;Sprawdzam pliki zawierające 'snap'...
-   - 'wzorzec_nazwy_pliku_do_wyszukania' to wzorzec dla polecenia find (np. `*snap*`, `plik.txt`, `*.jpg`). Może być też bardziej ogólny.
-   - 'komunikat_dla_uzytkownika_o_szukaniu' to krótki tekst, który GUI wyświetli użytkownikowi.
+     {{
+       "needs_file_search": true,
+       "file_search_pattern": "wzorzec_nazwy_pliku_do_wyszukania",
+       "file_search_message": "komunikat_dla_uzytkownika_o_szukaniu"
+     }}
 
-3. Jeśli zapytanie jest niejasne, odpowiedz TYLKO słowami: CLARIFY_REQUEST
-4. Jeśli zapytanie wydaje się niebezpieczne, odpowiedz TYLKO słowami: DANGEROUS_REQUEST
+3. Jeśli zapytanie jest niejasne, odpowiedz:
+   {{
+     "error": "CLARIFY_REQUEST"
+   }}
 
-Nie dodawaj nic więcej, żadnych wstępów, markdown, poza wymaganym formatem."""
+4. Jeśli zapytanie wydaje się niebezpieczne, odpowiedz:
+   {{
+     "error": "DANGEROUS_REQUEST"
+   }}
+
+Zawsze zwracaj odpowiedź w formacie JSON. Nie dodawaj żadnych wstępów, markdown, poza wymaganym formatem JSON."""
         system_instruction_formatted = system_instruction_template.format(
             distro_context=distro_context, wd_context=wd_context,
             cwd_files_info=cwd_files_info, lang_instr=lang_instr,
@@ -309,19 +333,134 @@ Nie dodawaj nic więcej, żadnych wstępów, markdown, poza wymaganym formatem."
 
         if not api_response_wrapper.success or not api_response_wrapper.explanation:
             return GeminiApiResponse(success=False, error=api_response_wrapper.error or "Brak odpowiedzi od AI", working_dir=working_dir)
-        raw_text = api_response_wrapper.explanation; logger.debug(f"Surowy tekst odpowiedzi Gemini (po _send_request): {raw_text}")
-        if raw_text.strip() == "CLARIFY_REQUEST": return GeminiApiResponse(success=False, error="CLARIFY_REQUEST", working_dir=working_dir)
-        if raw_text.strip() == "DANGEROUS_REQUEST": return GeminiApiResponse(success=False, error="DANGEROUS_REQUEST", working_dir=working_dir)
+        
+        raw_text = api_response_wrapper.explanation
+        logger.debug(f"Surowy tekst odpowiedzi Gemini (po _send_request): {raw_text}")
+        
+        # Próba parsowania JSON
+        try:
+            # Usuń ewentualne markdown i inne formatowanie
+            json_text = raw_text.strip()
+            if json_text.startswith("```json"):
+                json_text = json_text[7:]
+            if json_text.endswith("```"):
+                json_text = json_text[:-3]
+            json_text = json_text.strip()
+            
+            response_data = json.loads(json_text)
+            logger.debug(f"Pomyślnie sparsowano JSON: {response_data}")
+            
+            # Obsługa błędów
+            if "error" in response_data:
+                error_type = response_data["error"]
+                if error_type == "CLARIFY_REQUEST":
+                    return GeminiApiResponse(success=False, error="CLARIFY_REQUEST", working_dir=working_dir)
+                elif error_type == "DANGEROUS_REQUEST":
+                    return GeminiApiResponse(success=False, error="DANGEROUS_REQUEST", working_dir=working_dir)
+                else:
+                    return GeminiApiResponse(success=False, error=error_type, working_dir=working_dir)
+            
+            # Obsługa wyszukiwania plików
+            if response_data.get("needs_file_search"):
+                pattern = response_data.get("file_search_pattern", "*")
+                message = response_data.get("file_search_message", "Rozpoczynam wyszukiwanie plików...")
+                logger.info(f"AI zażądało przeszukania plików: wzorzec='{pattern}', komunikat='{message}'")
+                return GeminiApiResponse(
+                    success=True, 
+                    needs_file_search=True, 
+                    file_search_pattern=pattern, 
+                    file_search_message=message, 
+                    needs_external_terminal=False, 
+                    working_dir=working_dir
+                )
+            
+            # Obsługa odpowiedzi tekstowej
+            if response_data.get("is_text_answer"):
+                explanation = response_data.get("explanation", "")
+                logger.info(f"AI odpowiedziało tekstowo: {explanation}")
+                return GeminiApiResponse(
+                    success=True, 
+                    explanation=explanation, 
+                    is_text_answer=True, 
+                    needs_external_terminal=False, 
+                    working_dir=working_dir
+                )
+            
+            # Obsługa polecenia
+            command = response_data.get("command")
+            if command:
+                explanation = response_data.get("explanation", "")
+                is_interactive = response_data.get("is_interactive", False)
+                needs_ext_term = response_data.get("needs_external_terminal", False)
+                
+                interaction_input = None
+                button_label = None
+                
+                if is_interactive and "interaction_suggestion" in response_data:
+                    interaction_suggestion = response_data["interaction_suggestion"]
+                    if interaction_suggestion:
+                        interaction_input = interaction_suggestion.get("input")
+                        button_label = interaction_suggestion.get("button_label")
+                
+                return GeminiApiResponse(
+                    success=True,
+                    command=command,
+                    explanation=explanation,
+                    suggested_interaction_input=interaction_input,
+                    suggested_button_label=button_label,
+                    needs_external_terminal=needs_ext_term,
+                    working_dir=working_dir
+                )
+            
+            # Jeśli nie ma ani polecenia, ani odpowiedzi tekstowej, ani wyszukiwania
+            logger.warning(f"JSON nie zawiera oczekiwanych pól: {response_data}")
+            return GeminiApiResponse(success=False, error="Nieprawidłowy format odpowiedzi JSON", working_dir=working_dir)
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"Nie udało się sparsować JSON: {e}. Próba parsowania jako tekst...")
+            # Fallback do starej logiki parsowania tekstu
+            return self._parse_legacy_text_response(raw_text, working_dir)
+        except Exception as e:
+            logger.error(f"Błąd podczas parsowania odpowiedzi: {e}")
+            return GeminiApiResponse(success=False, error=f"Błąd parsowania: {e}", working_dir=working_dir)
+
+    def _parse_legacy_text_response(self, raw_text: str, working_dir: Optional[str]) -> GeminiApiResponse:
+        """Fallback do starej logiki parsowania tekstu w przypadku błędu JSON"""
+        logger.debug(f"Używam legacy parsera dla tekstu: {raw_text}")
+        
+        if raw_text.strip() == "CLARIFY_REQUEST": 
+            return GeminiApiResponse(success=False, error="CLARIFY_REQUEST", working_dir=working_dir)
+        if raw_text.strip() == "DANGEROUS_REQUEST": 
+            return GeminiApiResponse(success=False, error="DANGEROUS_REQUEST", working_dir=working_dir)
+        
         lines = raw_text.split('\n')
         if lines and lines[0].strip().startswith("SZUKAJ_PLIKOW:"):
-            content = lines[0].strip()[len("SZUKAJ_PLIKOW:"):].strip(); pattern, message = "", "Rozpoczynam wyszukiwanie plików..."
-            if ";" in content: pattern, message = map(str.strip, content.split(";", 1))
-            else: pattern = content
+            content = lines[0].strip()[len("SZUKAJ_PLIKOW:"):].strip()
+            pattern, message = "", "Rozpoczynam wyszukiwanie plików..."
+            if ";" in content: 
+                pattern, message = map(str.strip, content.split(";", 1))
+            else: 
+                pattern = content
             logger.info(f"AI zażądało przeszukania plików: wzorzec='{pattern}', komunikat='{message}'")
-            return GeminiApiResponse(success=True, needs_file_search=True, file_search_pattern=pattern if pattern else "*", file_search_message=message, needs_external_terminal=False, working_dir=working_dir)
+            return GeminiApiResponse(
+                success=True, 
+                needs_file_search=True, 
+                file_search_pattern=pattern if pattern else "*", 
+                file_search_message=message, 
+                needs_external_terminal=False, 
+                working_dir=working_dir
+            )
+        
         if lines and lines[0].strip() == "ODPOWIEDZ_TEKSTOWA:":
-            text_answer = "\n".join(lines[1:]).strip(); logger.info(f"AI odpowiedziało tekstowo: {text_answer}")
-            return GeminiApiResponse(success=True, explanation=text_answer, is_text_answer=True, needs_external_terminal=False, working_dir=working_dir)
+            text_answer = "\n".join(lines[1:]).strip()
+            logger.info(f"AI odpowiedziało tekstowo: {text_answer}")
+            return GeminiApiResponse(
+                success=True, 
+                explanation=text_answer, 
+                is_text_answer=True, 
+                needs_external_terminal=False, 
+                working_dir=working_dir
+            )
 
         command_part = lines[0].strip() if lines else ""
         explanation_part = ""
@@ -333,46 +472,63 @@ Nie dodawaj nic więcej, żadnych wstępów, markdown, poza wymaganym formatem."
         elif command_part.lower().startswith("command:"):
             command_part = command_part[len("command:") :].strip()
 
-        default_lang_name = "English"
-        if "polski" in lang_instr.lower(): default_lang_name = "Polski"
-        elif "česky" in lang_instr.lower() or "češtině" in lang_instr.lower(): default_lang_name = "Česky"
-        default_explanation_on_format_error = f"({default_lang_name}: AI nie dostarczyło wyjaśnienia w oczekiwanym formacie)"
+        default_explanation_on_format_error = "(AI nie dostarczyło wyjaśnienia w oczekiwanym formacie)"
 
         idx = 1
         if idx < len(lines) and lines[idx].strip().startswith("WYJAŚNIENIE:"):
-            explanation_content = lines[idx].strip()[len("WYJAŚNIENIE:"):].strip(); idx += 1
+            explanation_content = lines[idx].strip()[len("WYJAŚNIENIE:"):].strip()
+            idx += 1
             while idx < len(lines) and not lines[idx].strip().startswith("INTERAKCJA_POLECENIE:") and not lines[idx].strip().startswith("INTERAKCJA_TERMINAL:"):
-                explanation_content += "\n" + lines[idx].strip(); idx += 1
+                explanation_content += "\n" + lines[idx].strip()
+                idx += 1
             explanation_part = explanation_content.strip()
 
             if idx < len(lines):
                 if lines[idx].strip().startswith("INTERAKCJA_POLECENIE:"):
                     interaction_line_content = lines[idx].strip()[len("INTERAKCJA_POLECENIE:"):].strip()
-                    if ";" in interaction_line_content: interaction_input, button_label = map(str.strip, interaction_line_content.split(";", 1))
-                    else: interaction_input = interaction_line_content; button_label = f"Wykonaj ({interaction_input})" if interaction_input else "Wykonaj"
+                    if ";" in interaction_line_content: 
+                        interaction_input, button_label = map(str.strip, interaction_line_content.split(";", 1))
+                    else: 
+                        interaction_input = interaction_line_content
+                        button_label = f"Wykonaj ({interaction_input})" if interaction_input else "Wykonaj"
                 elif lines[idx].strip().startswith("INTERAKCJA_TERMINAL:"):
                     needs_ext_term = True
                     interaction_line_content = lines[idx].strip()[len("INTERAKCJA_TERMINAL:"):].strip()
                     interaction_input = "TERMINAL_REQUIRED"
-                    if ";" in interaction_line_content: _, button_label = map(str.strip, interaction_line_content.split(";", 1))
-                    else: button_label = interaction_line_content if interaction_line_content else "Uruchom w terminalu"
+                    if ";" in interaction_line_content: 
+                        _, button_label = map(str.strip, interaction_line_content.split(";", 1))
+                    else: 
+                        button_label = interaction_line_content if interaction_line_content else "Uruchom w terminalu"
 
-        elif command_part: explanation_part = default_explanation_on_format_error
+        elif command_part: 
+            explanation_part = default_explanation_on_format_error
         elif not command_part and not explanation_part and raw_text:
             logger.warning(f"AI zwróciło tekst bez standardowego formatowania polecenia/odpowiedzi. Traktuję jako odpowiedź tekstową: '{raw_text}'")
-            return GeminiApiResponse(success=True, explanation=raw_text, is_text_answer=True, needs_external_terminal=False, working_dir=working_dir)
+            return GeminiApiResponse(
+                success=True, 
+                explanation=raw_text, 
+                is_text_answer=True, 
+                needs_external_terminal=False, 
+                working_dir=working_dir
+            )
 
         if not command_part and not explanation_part and not raw_text.strip():
-             logger.error(f"Nie udało się sparsować odpowiedzi AI, była pusta: '{raw_text}'")
-             return GeminiApiResponse(success=False, error="Nie udało się sparsować odpowiedzi AI (pusta).", working_dir=working_dir)
-        if not explanation_part.strip() and command_part: explanation_part = default_explanation_on_format_error
+            logger.error(f"Nie udało się sparsować odpowiedzi AI, była pusta: '{raw_text}'")
+            return GeminiApiResponse(success=False, error="Nie udało się sparsować odpowiedzi AI (pusta).", working_dir=working_dir)
+        
+        if not explanation_part.strip() and command_part: 
+            explanation_part = default_explanation_on_format_error
 
-        return GeminiApiResponse(success=True, command=command_part, explanation=explanation_part,
-                                 suggested_interaction_input=interaction_input,
-                                 suggested_button_label=button_label,
-                                 is_text_answer=False if command_part else True,
-                                 needs_external_terminal=needs_ext_term, working_dir=working_dir)
-
+        return GeminiApiResponse(
+            success=True, 
+            command=command_part, 
+            explanation=explanation_part,
+            suggested_interaction_input=interaction_input,
+            suggested_button_label=button_label,
+            is_text_answer=False if command_part else True,
+            needs_external_terminal=needs_ext_term, 
+            working_dir=working_dir
+        )
 
     def analyze_text_input_type(self, text_input: str, language_instruction: Optional[str] = None) -> GeminiApiResponse:
         if not self.is_configured or not self.client:
