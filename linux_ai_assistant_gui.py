@@ -1441,7 +1441,7 @@ Configuration:
             terminals = {
                 "gnome-terminal": ["--working-directory", self.gui_current_working_dir, "--", "bash", "-c", bash_command_payload],
                 "konsole": ["--workdir", self.gui_current_working_dir, "-e", "bash", "-c", bash_command_payload],
-                "xfce4-terminal": ["--working-directory", self.gui_current_working_dir, "--command", f"bash -c \"{bash_command_payload.replace('\"', '\\\\\\"')}\""],
+                "xfce4-terminal": ["--working-directory", self.gui_current_working_dir, "--command", f"bash -c \"{bash_command_payload.replace('\"', '\\\"')}\""],
                 "lxterminal": ["--working-directory", self.gui_current_working_dir, "-e", f"bash -c '{bash_command_payload}'"],
                 "mate-terminal": ["--working-directory", self.gui_current_working_dir, "--", "bash", "-c", bash_command_payload],
                 "xterm": ["-e", f"bash -c \"cd '{shlex.quote(self.gui_current_working_dir)}' && {bash_command_payload.replace('\"', '\\\"')}\""]
