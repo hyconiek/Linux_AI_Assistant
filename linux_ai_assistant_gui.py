@@ -1444,7 +1444,7 @@ Configuration:
                 "xfce4-terminal": ["--working-directory", self.gui_current_working_dir, "--command", "bash -c \"" + bash_command_payload.replace('"', '\\"') + "\""],
                 "lxterminal": ["--working-directory", self.gui_current_working_dir, "-e", f"bash -c '{bash_command_payload}'"],
                 "mate-terminal": ["--working-directory", self.gui_current_working_dir, "--", "bash", "-c", bash_command_payload],
-                "xterm": ["-e", f"bash -c \"cd '{shlex.quote(self.gui_current_working_dir)}' && {bash_command_payload.replace('\"', '\\\"')}\""]
+                "xterm": ["-e", "bash -c \"cd '" + shlex.quote(self.gui_current_working_dir) + "' && " + bash_command_payload.replace('"', '\\"') + "\""],
             }
             for term_name_iter, t_args_iter in terminals.items():
                 if shutil.which(term_name_iter):
