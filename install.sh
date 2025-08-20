@@ -66,7 +66,7 @@ echo "Tworzenie pliku .desktop..."
 APP_WM_CLASS="LinuxAIAssistant" # Ustawiamy wartość znalezioną przez xprop
 
 DESKTOP_FILE_CONTENT="[Desktop Entry]
-Version=1.0.5
+Version=1.1
 Name=$APP_NAME_DISPLAY
 GenericName=AI Command Assistant
 Comment=AI Assistant for Linux Commands

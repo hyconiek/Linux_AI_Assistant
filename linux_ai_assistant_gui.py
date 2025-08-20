@@ -2070,6 +2070,14 @@ def load_translations(app: QApplication) -> QTranslator:
 
 def main_gui_entry_point():
     app = QApplication(sys.argv)
+
+        # --- POCZĄTEK ZMIAN ---
+    # Ta linia jest kluczowa dla integracji z Wayland.
+    # Ustawia 'app_id' tak, aby pasował do nazwy pliku laia.desktop.
+    # Dzięki temu menedżer okien wie, jak skojarzyć okno aplikacji z ikoną.
+    from PyQt5.QtGui import QGuiApplication
+    QGuiApplication.setDesktopFileName("laia.desktop")
+    # --- KONIEC ZMIAN ---
     app.setApplicationName("Linux AI Assistant")
     app.setApplicationVersion("1.1")
     app.setOrganizationName("Hyconiek")
