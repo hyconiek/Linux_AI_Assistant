@@ -1426,68 +1426,74 @@ Configuration:
         self.cancel_button.setText("Stop")
         self.cancel_button.setEnabled(True)
 
-
+        # --- ULEPSZONA LOGIKA URUCHAMIANIA ZEWNĘTRZNEGO TERMINALA ---
         if needs_ext_term:
             self.log_message(f"Command '{self.current_command}' requires an external terminal. Launching...", "system", True)
+
+            # Przygotuj uniwersalny ładunek polecenia do wykonania w bashu
             inner_cmd_for_bash = self.current_command.replace("'", "'\\''")
             bash_command_payload = (
                 f"echo '--- Linux AI Assistant: Executing Command ---'; "
                 f"echo 'Command: {inner_cmd_for_bash}'; "
                 f"echo 'Working directory: {self.gui_current_working_dir}'; echo; "
                 f"cd '{shlex.quote(self.gui_current_working_dir)}' && ({inner_cmd_for_bash}); "
-                f"echo -e '\\n\\n--- Command finished. Press Enter to close this terminal. ---'; read"
+                f"echo; echo '--- Command finished. Press Enter to close this terminal. ---'; read"
             )
-            term_to_use = None; args_term = []
-            terminals = {
-                "gnome-terminal": ["--working-directory", self.gui_current_working_dir, "--", "bash", "-c", bash_command_payload],
-                "konsole": ["--workdir", self.gui_current_working_dir, "-e", "bash", "-c", bash_command_payload],
-                "xfce4-terminal": ["--working-directory", self.gui_current_working_dir, "--command", "bash -c \"" + bash_command_payload.replace('"', '\\"') + "\""],
-                "lxterminal": ["--working-directory", self.gui_current_working_dir, "-e", f"bash -c '{bash_command_payload}'"],
-                "mate-terminal": ["--working-directory", self.gui_current_working_dir, "--", "bash", "-c", bash_command_payload],
-                "xterm": ["-e", "bash -c \"cd '" + shlex.quote(self.gui_current_working_dir) + "' && " + bash_command_payload.replace('"', '\\"') + "\""],
-            }
-            for term_name_iter, t_args_iter in terminals.items():
-                if shutil.which(term_name_iter):
-                    term_to_use = term_name_iter; args_term = t_args_iter; break
-            if not term_to_use: term_to_use = "xterm"; args_term = terminals["xterm"]
+
+            # Znajdź pierwszy dostępny emulator terminala z listy preferencji
+            term_to_use = None
+            preferred_terminals = ["konsole", "gnome-terminal", "xfce4-terminal", "mate-terminal", "lxterminal", "xterm"]
+            for term in preferred_terminals:
+                if shutil.which(term):
+                    term_to_use = term
+                    break
 
             if term_to_use:
-                try:
-                    self.log_message(f"Attempting to launch '{self.current_command}' in '{term_to_use}'", "debug_backend")
-                    final_args_for_popen = [term_to_use] + args_term[1:] if term_to_use != "xterm" else [term_to_use] + args_term # Poprawka dla xterm
-                    subprocess.Popen(final_args_for_popen, cwd=(args_term[0] if term_to_use != "xterm" and len(args_term)>0 and os.path.isdir(args_term[0]) else None))
-                    self.log_message(f"Command '{self.current_command}' launched in '{term_to_use}'. Please interact with the new terminal window.", "success", True)
-                    # Po uruchomieniu w zewn. terminalu, czyścimy panel i resetujemy przyciski
-                    self.generated_command_panel.hide()
-                    self.execute_button.setText("Execute"); self.execute_button.setEnabled(False)
-                    self.copy_button.setEnabled(True)
-                    self.cancel_button.setText("Cancel"); self.cancel_button.setEnabled(False)
-                    self.ai_output_display.clear()
-                    if hasattr(self, '_original_ai_output_placeholder'): self.ai_output_display.setPlaceholderText(self._original_ai_output_placeholder)
-                    self.current_command = None; self.current_command_suggested_interaction_input = None
-                    self.stop_processing_animation() # Zatrzymaj animację, jeśli była
-                except Exception as e_term_launch:
-                    self.log_message(f"Error launching external terminal '{term_to_use}': {e_term_launch}", "error", True)
-                    QMessageBox.warning(self, "Terminal Error", f"Could not launch command in '{term_to_use}'.\nPlease execute manually:\n\ncd \"{self.gui_current_working_dir}\"\n{self.current_command}")
-                    # Przywróć stan przycisków w razie błędu uruchomienia
-                    self.execute_button.setEnabled(True)
-                    self.copy_button.setEnabled(True)
-                    self.cancel_button.setText("Cancel")
-            return # Zakończ po próbie uruchomienia w zewnętrznym terminalu
+                # Zbuduj listę argumentów dla subprocess.Popen
+                final_command_list = []
+                if term_to_use in ["gnome-terminal", "mate-terminal"]:
+                    final_command_list = [term_to_use, "--", "bash", "-c", bash_command_payload]
+                elif term_to_use in ["konsole", "xfce4-terminal", "lxterminal", "xterm"]:
+                    final_command_list = [term_to_use, "-e", "bash", "-c", bash_command_payload]
+
+                if final_command_list:
+                    try:
+                        self.log_message(f"Attempting to launch in '{term_to_use}' with args: {' '.join(final_command_list)}", "debug_backend")
+                        subprocess.Popen(final_command_list)
+                        self.log_message(f"Command '{self.current_command}' launched in '{term_to_use}'. Please interact with the new terminal window.", "success", True)
+
+                        # Po pomyślnym uruchomieniu, zresetuj GUI
+                        self.generated_command_panel.hide()
+                        self.ai_output_display.clear()
+                        if hasattr(self, '_original_ai_output_placeholder'): self.ai_output_display.setPlaceholderText(self._original_ai_output_placeholder)
+                        self.current_command = None
+                        self.current_command_suggested_interaction_input = None
+                        self.stop_processing_animation()
+                        self.execute_button.setText("Execute"); self.execute_button.setEnabled(False)
+                        self.copy_button.setEnabled(True)
+                        self.cancel_button.setText("Cancel"); self.cancel_button.setEnabled(False)
+
+                    except Exception as e_term_launch:
+                        self.log_message(f"Error launching external terminal '{term_to_use}': {e_term_launch}", "error", True)
+                        QMessageBox.warning(self, "Terminal Error", f"Could not launch command in '{term_to_use}'.\nPlease execute manually:\n\ncd \"{self.gui_current_working_dir}\"\n{self.current_command}")
+                        self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel")
+                    return # Zakończ funkcję po próbie uruchomienia w terminalu
+
+            # Jeśli nie udało się znaleźć terminala
+            self.log_message("No suitable terminal emulator found.", "error", True)
+            QMessageBox.warning(self, "Terminal Not Found", f"Could not find a supported terminal emulator.\nPlease execute manually:\n\ncd \"{self.gui_current_working_dir}\"\n{self.current_command}")
+            self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel")
+            return # Zakończ, jeśli nie ma terminala
 
         self.start_processing_animation("Executing AI-generated command...")
         cmd_to_backend = self.current_command
-        
-        # Bezpieczne obsługiwanie poleceń sudo w GUI używając pkexec
+
         if self.current_command.strip().startswith("sudo ") and not self.current_command.strip().startswith("echo "):
-            # Sprawdź, czy pkexec jest dostępny
             if shutil.which("pkexec"):
-                # Użyj pkexec zamiast niebezpiecznego przekazywania hasła przez echo
                 cmd_no_sudo = self.current_command.replace("sudo ", "", 1).strip()
                 cmd_to_backend = f"pkexec {cmd_no_sudo}"
                 self.log_message("Using pkexec for sudo command - system will show native password dialog.", "system", True)
             else:
-                # Fallback: pokaż dialog z ostrzeżeniem o bezpieczeństwie
                 self.log_message("pkexec not available. Using traditional sudo with password dialog.", "warning", True)
                 dialog = SudoPasswordDialog(self, self.current_command)
                 if dialog.exec_():
@@ -1499,7 +1505,6 @@ Configuration:
                         self.log_message("Sudo password provided. Preparing command for backend.", "system", True)
                     else:
                         self.log_message("Sudo password not provided. Cancelled.", "error", True); self.stop_processing_animation()
-                        # Przywróć przyciski
                         self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel")
                         return
                 else:
@@ -1509,7 +1514,7 @@ Configuration:
 
         self.current_command_suggested_interaction_input = None
         self.log_message(f"Sending to backend (AI-gen, auto-confirm): {self.current_command}", "command", True)
-        if cmd_to_backend != self.current_command: self.log_message(f"(Executing as: echo '****' | sudo -S ...)", "debug_backend")
+        if cmd_to_backend != self.current_command: self.log_message(f"(Executing as an alternative sudo command)", "debug_backend")
 
         self.current_exec_process = QProcess(self)
         self.current_exec_process.readyReadStandardOutput.connect(lambda: self.handle_execution_stdout_from_backend(self.current_exec_process))
@@ -1521,11 +1526,12 @@ Configuration:
         env.insert("LAA_BACKEND_MODE", "1"); env.insert("LAA_VERBOSE_LOGGING_EFFECTIVE", "1" if self.verbose_logging else "0")
         self.current_exec_process.setProcessEnvironment(env)
         exec_path, exec_args_list = (sys.executable, []) if getattr(sys,'frozen',False) and hasattr(sys, '_MEIPASS') else \
-                                   (sys.executable, [os.path.join(os.path.dirname(os.path.abspath(__file__)),"src","backend_cli.py")])
+                                (sys.executable, [os.path.join(os.path.dirname(os.path.abspath(__file__)),"src","backend_cli.py")])
         if not (getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')) and not os.path.exists(exec_args_list[0]):
-             self.log_message(f"CRITICAL: Dev backend_cli.py not found: {exec_args_list[0]}", "error", True); self.stop_processing_animation()
-             self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel")
-             return
+            self.log_message(f"CRITICAL: Dev backend_cli.py not found: {exec_args_list[0]}", "error", True); self.stop_processing_animation()
+            if self.current_exec_process: self.current_exec_process.deleteLater(); self.current_exec_process = None
+            self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel")
+            return
         exec_args_list.extend(["--query", cmd_to_backend, "--execute", "--json", "--working-dir", self.gui_current_working_dir])
         logged_args = ' '.join(shlex.quote(arg) for arg in exec_args_list)
         self.log_message(f"Backend exec cmd (AI-gen): {exec_path} {logged_args}", "debug_backend")
@@ -1543,31 +1549,75 @@ Configuration:
         self.cancel_button.setText("Stop")
         self.cancel_button.setEnabled(True) # Aktywuj Stop
 
+        cmd_to_backend = command_str
+
+        # --- DODANA LOGIKA OBSŁUGI SUDO ---
+        # Ta sekcja została przeniesiona z funkcji execute_command, aby zapewnić spójne działanie
+        if command_str.strip().startswith("sudo ") and not command_str.strip().startswith("echo "):
+            if shutil.which("pkexec"):
+                # Użyj pkexec, aby wywołać natywny graficzny monit o hasło
+                cmd_no_sudo = command_str.replace("sudo ", "", 1).strip()
+                cmd_to_backend = f"pkexec {cmd_no_sudo}"
+                self.log_message("Using pkexec for sudo command - system will show native password dialog.", "system", True)
+            else:
+                # Fallback: jeśli pkexec nie jest dostępne, pokaż własne okno dialogowe
+                self.log_message("pkexec not available. Using traditional sudo with password dialog.", "warning", True)
+                dialog = SudoPasswordDialog(self, command_str)
+                if dialog.exec_():
+                    passwd = dialog.get_password()
+                    if passwd:
+                        cmd_no_sudo = command_str.replace("sudo ", "", 1).strip()
+                        esc_passwd = shlex.quote(passwd)
+                        # Przygotuj polecenie do wykonania przez backend z hasłem przekazanym przez stdin
+                        cmd_to_backend = f"echo {esc_passwd} | sudo -S -p '' {cmd_no_sudo}"
+                        self.log_message("Sudo password provided. Preparing command for backend.", "system", True)
+                    else:
+                        self.log_message("Sudo password not provided. Cancelled.", "error", True)
+                        self.stop_processing_animation()
+                        self.cancel_button.setText("Cancel")
+                        self.cancel_button.setEnabled(False)
+                        return
+                else:
+                    self.log_message("Sudo command execution cancelled by user.", "system", True)
+                    self.stop_processing_animation()
+                    self.cancel_button.setText("Cancel")
+                    self.cancel_button.setEnabled(False)
+                    return
+        # --- KONIEC DODANEJ LOGIKI ---
+
         self.current_exec_process = QProcess(self)
         self.current_exec_process.readyReadStandardOutput.connect(lambda: self.handle_execution_stdout_from_backend(self.current_exec_process))
         self.current_exec_process.readyReadStandardError.connect(lambda: self.handle_execution_stderr_from_backend(self.current_exec_process))
         self.waiting_for_basic_command_explanation_for = command_str
         self.current_exec_process.finished.connect(lambda ec, es, cmd=command_str, proc_instance=self.current_exec_process: self.execution_process_finished_from_backend(ec, es, cmd, proc_instance))
+
         env = QProcessEnvironment.systemEnvironment()
         gemini_key = self.config["api_keys"].get("gemini", "")
         if gemini_key: env.insert("GOOGLE_API_KEY", gemini_key)
         env.insert("LAA_BACKEND_MODE", "1"); env.insert("LAA_VERBOSE_LOGGING_EFFECTIVE", "1" if self.verbose_logging else "0")
         self.current_exec_process.setProcessEnvironment(env)
+
         exec_path, exec_args_list = (sys.executable, []) if getattr(sys,'frozen',False) and hasattr(sys, '_MEIPASS') else \
-                                   (sys.executable, [os.path.join(os.path.dirname(os.path.abspath(__file__)),"src","backend_cli.py")])
+                                (sys.executable, [os.path.join(os.path.dirname(os.path.abspath(__file__)),"src","backend_cli.py")])
+
         if not (getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')) and not os.path.exists(exec_args_list[0]):
-             self.log_message(f"CRITICAL: Dev backend_cli.py not found: {exec_args_list[0]}", "error", True); self.stop_processing_animation()
-             self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel"); self.cancel_button.setEnabled(False)
-             return
-        exec_args_list.extend(["--query", command_str, "--execute", "--json", "--working-dir", self.gui_current_working_dir])
+            self.log_message(f"CRITICAL: Dev backend_cli.py not found: {exec_args_list[0]}", "error", True); self.stop_processing_animation()
+            self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel"); self.cancel_button.setEnabled(False)
+            return
+
+        # Użyj zmodyfikowanego polecenia 'cmd_to_backend'
+        exec_args_list.extend(["--query", cmd_to_backend, "--execute", "--json", "--working-dir", self.gui_current_working_dir])
+
         logged_args = ' '.join(shlex.quote(arg) for arg in exec_args_list)
         self.log_message(f"Backend exec cmd (basic): {exec_path} {logged_args}", "debug_backend")
         self.current_exec_process.start(exec_path, exec_args_list)
+
         if not self.current_exec_process.waitForStarted(10000):
             self.log_message(f"Błąd startu backendu (basic exec): {self.current_exec_process.errorString()}", "error", True); self.stop_processing_animation()
             if self.current_exec_process: self.current_exec_process.deleteLater(); self.current_exec_process = None
             self.waiting_for_basic_command_explanation_for = None
             self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel"); self.cancel_button.setEnabled(False)
+
         QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def request_ai_explanation_for_executed_command(self, command_str: str):
