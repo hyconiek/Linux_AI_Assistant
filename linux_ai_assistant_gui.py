@@ -1459,7 +1459,19 @@ Configuration:
                 if final_command_list:
                     try:
                         self.log_message(f"Attempting to launch in '{term_to_use}' with args: {' '.join(final_command_list)}", "debug_backend")
-                        subprocess.Popen(final_command_list)
+                        clean_env = os.environ.copy()
+                        for var_name in [
+                            "LD_LIBRARY_PATH",
+                            "QT_PLUGIN_PATH",
+                            "QT_QPA_PLATFORM_PLUGIN_PATH",
+                            "QML2_IMPORT_PATH",
+                            "PYTHONPATH",
+                            "APPDIR",
+                            "LD_PRELOAD",
+                        ]:
+                            if var_name in clean_env:
+                                del clean_env[var_name]
+                        subprocess.Popen(final_command_list, env=clean_env, start_new_session=True)
                         self.log_message(f"Command '{self.current_command}' launched in '{term_to_use}'. Please interact with the new terminal window.", "success", True)
 
                         # Po pomyślnym uruchomieniu, zresetuj GUI

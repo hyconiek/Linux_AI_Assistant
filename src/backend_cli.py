@@ -594,17 +594,31 @@ class LinuxAIAssistant:
             # Dodaj pauzę na końcu, aby użytkownik mógł zobaczyć wynik
             cmd_payload = f"cd {shlex.quote(self.command_executor.get_current_working_dir())} && {command}; echo -e '\\n\\n--- Polecenie zakończone. Naciśnij Enter, aby zamknąć ten terminal. ---'; read"
 
+            # Przygotuj czyste środowisko (bez AppImage/Qt LD vars), aby terminal nie dziedziczył niekompatybilnych bibliotek
+            clean_env = os.environ.copy()
+            for var_name in [
+                "LD_LIBRARY_PATH",
+                "QT_PLUGIN_PATH",
+                "QT_QPA_PLATFORM_PLUGIN_PATH",
+                "QML2_IMPORT_PATH",
+                "PYTHONPATH",
+                "APPDIR",
+                "LD_PRELOAD",
+            ]:
+                if var_name in clean_env:
+                    del clean_env[var_name]
+
             if terminal_emulator == "gnome-terminal":
                 # gnome-terminal -- bash -c "komenda"
-                subprocess.Popen([terminal_emulator, "--", "bash", "-c", cmd_payload])
+                subprocess.Popen([terminal_emulator, "--", "bash", "-c", cmd_payload], start_new_session=True, env=clean_env)
             elif terminal_emulator == "konsole":
                 # konsole -e bash -c "komenda"
-                subprocess.Popen([terminal_emulator, "-e", "bash", "-c", cmd_payload])
+                subprocess.Popen([terminal_emulator, "-e", "bash", "-c", cmd_payload], start_new_session=True, env=clean_env)
             elif terminal_emulator in ["xfce4-terminal", "lxterminal", "mate-terminal"]:
                 # te często używają -e lub --command=
-                subprocess.Popen([terminal_emulator, "-e", f"bash -c \"{cmd_payload.replace('\"', '\\\"')}\""])  # Wymaga dodatkowego escapowania dla niektórych
+                subprocess.Popen([terminal_emulator, "-e", f"bash -c \"{cmd_payload.replace('\"', '\\\"')}\""], start_new_session=True, env=clean_env)  # Wymaga dodatkowego escapowania dla niektórych
             else:  # xterm i inne, które mogą używać -e
-                subprocess.Popen([terminal_emulator, "-e", f"bash -c \"{cmd_payload.replace('\"', '\\\"')}\""])
+                subprocess.Popen([terminal_emulator, "-e", f"bash -c \"{cmd_payload.replace('\"', '\\\"')}\""], start_new_session=True, env=clean_env)
 
             print(f"{Fore.GREEN}Polecenie '{command}' uruchomione w '{terminal_emulator}'. Sprawdź nowe okno terminala.{Style.RESET_ALL}")
 
