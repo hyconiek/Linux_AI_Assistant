@@ -63,7 +63,7 @@ else: # W trybie JSON, wyłącz kolory
 
 
 class LinuxAIAssistant:
-    def __init__(self, initial_working_dir: Optional[str] = None):
+    def __init__(self, initial_working_dir: Optional[str] = None, model_name: str = 'gemini-flash-latest'):
         self.logger = logging.getLogger("backend_assistant_instance") # Osobny logger dla instancji
         self.logger.info("LinuxAIAssistant (backend instance) logger initialized.")
         self.command_executor = CommandExecutor(timeout=120) # Domyślny timeout
@@ -80,7 +80,7 @@ class LinuxAIAssistant:
             self.logger.info(f"Backend: Brak argumentu initial_working_dir. Używam domyślnego CWD egzekutora.")
 
 
-        self.ai_engine = GeminiIntegration(model_name='gemini-2.5-flash-preview-05-20') # Użyj stabilnej nazwy
+        self.ai_engine = GeminiIntegration(model_name=model_name)
         self.distro_detector = DistributionDetector()
         self.distro_info = self.distro_detector.detect_distribution()
         self.chat_history_for_ai: List[Dict[str, Any]] = [] # Historia tylko dla AI, resetowana per sesję z GUI
@@ -649,11 +649,12 @@ def main():
     parser.add_argument("--execute", "-e", action="store_true", help="Automatycznie wykonaj polecenie (używane przez GUI)")
     parser.add_argument("--json", "-j", action="store_true", help="Zwróć wynik w formacie JSON (używane przez GUI)")
     parser.add_argument("--working-dir", "-wd", help="Początkowy katalog roboczy dla sesji backendu (używane przez GUI)")
+    parser.add_argument("--model", "-m", default="gemini-flash-latest", help="Nazwa modelu AI do użycia")
     args = parser.parse_args()
 
     logger_main_cli.info(f"Backend uruchomiony z argumentami: query='{args.query}', execute={args.execute}, json={args.json}, working_dir='{args.working_dir}'")
 
-    assistant = LinuxAIAssistant(initial_working_dir=args.working_dir)
+    assistant = LinuxAIAssistant(initial_working_dir=args.working_dir, model_name=args.model)
 
     if not assistant.ai_engine.is_configured:
         # Sprawdź, czy można bezpiecznie uruchomić polecenie offline

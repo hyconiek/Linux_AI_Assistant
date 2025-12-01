@@ -32,7 +32,7 @@ class GeminiApiResponse:
     working_dir: Optional[str] = None
 
 class GeminiIntegration:
-    def __init__(self, model_name: str = 'gemini-1.5-flash-latest'): # Użyj stabilnej nazwy modelu
+    def __init__(self, model_name: str = 'gemini-flash-latest'): # Użyj stabilnej nazwy modelu
         self.api_key = os.environ.get('GOOGLE_API_KEY')
         self.model_name_str = model_name
         self.client: Optional[genai.Client] = None

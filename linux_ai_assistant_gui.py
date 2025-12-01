@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QLabel, QDialog, QTabWidget, QCheckBox, QMessageBox,
                             QAction, QMenu, QStyle, QFileDialog, QStatusBar,
                             QDialogButtonBox, QFormLayout, QGroupBox, QSizePolicy,
-                            QSpacerItem)
+                            QSpacerItem, QSplitter)
 from PyQt5.QtGui import QFont, QIcon, QTextCursor, QColor, QPalette, QPixmap
 from PyQt5.QtCore import Qt, QProcess, QSettings, QSize, pyqtSignal, QTimer, QProcessEnvironment, QEvent, QTranslator, QCoreApplication
 
@@ -129,7 +129,7 @@ COMMAND_HISTORY_FILE = os.path.join(CONFIG_DIR, "command_history.json")
 
 DEFAULT_CONFIG = {
     "api_keys": {"gemini": ""},
-    "gui_model_name": "gemini-2.5-flash-preview-05-20",
+    "gui_model_name": "gemini-flash-latest",
     "verbose_logging": True,
     "max_history": 50,
     "show_instructions": True,
@@ -695,14 +695,23 @@ class LinuxAIAssistantGUI(QMainWindow):
 
     def _create_main_layout(self, main_layout):
         """Tworzy główny layout z terminalem, AI output i panelami"""
-        # Terminal
+        # Splitter
+        splitter = QSplitter(Qt.Vertical)
+        main_layout.addWidget(splitter)
+
+        # Terminal (Góra)
         self.terminal = TerminalWidget()
-        main_layout.addWidget(self.terminal, 1)
+        splitter.addWidget(self.terminal)
+        
+        # Kontener na dolną część (AI Output + Input)
+        bottom_container = QWidget()
+        bottom_layout = QVBoxLayout(bottom_container)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
         
         # AI Output
         self.ai_output_header_label = QLabel("AI Analysis / Explanation / Answer:")
         self.ai_output_header_label.setObjectName("AIOutputHeaderLabel")
-        main_layout.addWidget(self.ai_output_header_label)
+        bottom_layout.addWidget(self.ai_output_header_label)
         
         self.ai_output_display = QTextEdit()
         self.ai_output_display.setObjectName("AIOutputDisplay")
@@ -717,16 +726,23 @@ class LinuxAIAssistantGUI(QMainWindow):
         m_aio = self.ai_output_display.contentsMargins()
         p_aio = m_aio.top() + m_aio.bottom() + dm_aio
         self.ai_output_display.setMinimumHeight(int(lh_aio * 1.5) + p_aio)
-        self.ai_output_display.setMaximumHeight(int(lh_aio * 4.5) + p_aio)
+        # Usunięto setMaximumHeight aby umożliwić zmianę rozmiaru przez splitter
         self.ai_output_display.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.ai_output_display.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        main_layout.addWidget(self.ai_output_display)
+        bottom_layout.addWidget(self.ai_output_display)
         
         # Panel wygenerowanego polecenia
-        self._create_generated_command_panel(main_layout)
+        self._create_generated_command_panel(bottom_layout)
         
         # Input layout
-        self._create_input_layout(main_layout)
+        self._create_input_layout(bottom_layout)
+
+        # Dodaj dolny kontener do splittera
+        splitter.addWidget(bottom_container)
+
+        # Ustaw proporcje (Terminal większy)
+        splitter.setStretchFactor(0, 7)
+        splitter.setStretchFactor(1, 3)
 
     def _create_generated_command_panel(self, main_layout):
         """Tworzy panel wygenerowanego polecenia"""
@@ -1544,7 +1560,8 @@ Configuration:
             if self.current_exec_process: self.current_exec_process.deleteLater(); self.current_exec_process = None
             self.execute_button.setEnabled(True); self.copy_button.setEnabled(True); self.cancel_button.setText("Cancel")
             return
-        exec_args_list.extend(["--query", cmd_to_backend, "--execute", "--json", "--working-dir", self.gui_current_working_dir])
+        gui_model = self.config.get("gui_model_name", "gemini-flash-latest")
+        exec_args_list.extend(["--query", cmd_to_backend, "--execute", "--json", "--working-dir", self.gui_current_working_dir, "--model", gui_model])
         logged_args = ' '.join(shlex.quote(arg) for arg in exec_args_list)
         self.log_message(f"Backend exec cmd (AI-gen): {exec_path} {logged_args}", "debug_backend")
         self.current_exec_process.start(exec_path, exec_args_list)
@@ -1618,7 +1635,8 @@ Configuration:
             return
 
         # Użyj zmodyfikowanego polecenia 'cmd_to_backend'
-        exec_args_list.extend(["--query", cmd_to_backend, "--execute", "--json", "--working-dir", self.gui_current_working_dir])
+        gui_model = self.config.get("gui_model_name", "gemini-flash-latest")
+        exec_args_list.extend(["--query", cmd_to_backend, "--execute", "--json", "--working-dir", self.gui_current_working_dir, "--model", gui_model])
 
         logged_args = ' '.join(shlex.quote(arg) for arg in exec_args_list)
         self.log_message(f"Backend exec cmd (basic): {exec_path} {logged_args}", "debug_backend")
@@ -1961,7 +1979,8 @@ Configuration:
         if not (getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')) and not os.path.exists(exec_args_list[0]):
              self.log_message(f"CRITICAL: Dev backend_cli.py not found: {exec_args_list[0]}", "error", True); self.stop_processing_animation(); return
         
-        exec_args_list.extend(["--query", detailed_query, "--json", "--working-dir", self.gui_current_working_dir])
+        gui_model = self.config.get("gui_model_name", "gemini-flash-latest")
+        exec_args_list.extend(["--query", detailed_query, "--json", "--working-dir", self.gui_current_working_dir, "--model", gui_model])
         logged_args = ' '.join(shlex.quote(arg) for arg in exec_args_list)
         self.log_message(f"Cmd to backend (detailed_query): {exec_path} {logged_args}", "debug_backend")
         
