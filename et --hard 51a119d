@@ -1,0 +1,68 @@
+[33me82dc28[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: reset: moving to origin/main
+[33m51a119d[m HEAD@{1}: commit: model setting repair
+[33m6df1257[m HEAD@{2}: commit: open konsole
+[33m70b5079[m HEAD@{3}: commit: colab icon readme sudo
+[33mc4ad2e9[m HEAD@{4}: commit: colab icon readme
+[33m6aee95f[m[33m ([m[1;33mtag: [m[1;33mv1.1[m[33m)[m HEAD@{5}: commit: colab icon
+[33m150b5a3[m HEAD@{6}: checkout: moving from main to main
+[33m150b5a3[m HEAD@{7}: commit: 1.1 sec5
+[33md42efe8[m HEAD@{8}: commit: 1.1 sec4
+[33m704ac57[m HEAD@{9}: commit: 1.1 sec3
+[33mc2e7fab[m HEAD@{10}: commit: 1.1 sec2
+[33mf99c42c[m HEAD@{11}: commit: 1.1 sec1
+[33m7592354[m HEAD@{12}: commit: 1.1 sec
+[33m3047d84[m HEAD@{13}: checkout: moving from main to main
+[33m3047d84[m HEAD@{14}: commit: 1.1 no lang1
+[33m343183c[m HEAD@{15}: commit: 1.1 no lang
+[33m5c20fa7[m HEAD@{16}: commit: Dodano Dockerfile, skrypt budowania2
+[33m50fb22d[m HEAD@{17}: commit: Dodano Dockerfile, skrypt budowania1
+[33mcdb490e[m HEAD@{18}: commit: Dodano Dockerfile, skrypt budowania
+[33m6394645[m HEAD@{19}: commit: Dodano nowe .gitignore
+[33meee17c3[m HEAD@{20}: reset: moving to HEAD~1
+[33m17b9bde[m HEAD@{21}: commit: Dodano nowe .gitignore
+[33meee17c3[m HEAD@{22}: reset: moving to HEAD~1
+[33mb59a3db[m HEAD@{23}: commit: 1.0.5 docker 20.04
+[33meee17c3[m HEAD@{24}: commit: 1.0.5 active command
+[33m9ed00c5[m HEAD@{25}: commit: 1.0.5 installer1
+[33mfd09ff9[m HEAD@{26}: commit: 1.0.5 installer
+[33md34c113[m HEAD@{27}: commit: 1.0.5 instal uninstall
+[33m7172023[m HEAD@{28}: commit: 1.0.5 readmee
+[33m2363199[m HEAD@{29}: commit: 1.0.5 wait animation
+[33m72f7558[m HEAD@{30}: commit: 1.0.5 screenshot3
+[33md8d92f8[m[33m ([m[1;33mtag: [m[1;33mv1.0.5[m[33m)[m HEAD@{31}: commit: 1.0.5 a
+[33m76243af[m HEAD@{32}: commit: 1.0.5 screenshot1
+[33m70864ba[m HEAD@{33}: commit: 1.0.5 screenshot
+[33med901a3[m HEAD@{34}: commit: 1.0.5
+[33m1cf496c[m HEAD@{35}: commit: optimized notebook colab
+[33m2861609[m HEAD@{36}: commit: colab notebook
+[33m620fd8f[m[33m ([m[1;33mtag: [m[1;33mv1.0.4[m[33m)[m HEAD@{37}: commit: 1.0.4
+[33m8e51986[m HEAD@{38}: commit: CWD awareness & aknowledge
+[33m92897a6[m HEAD@{39}: commit: CWD awareness & aknowledge2
+[33m73c0bb7[m HEAD@{40}: commit: CWD awareness & aknowledge
+[33mf770f17[m HEAD@{41}: commit: screenshot readme
+[33m8967baf[m HEAD@{42}: commit: screenshot
+[33m5b9735e[m HEAD@{43}: commit: readme13
+[33m6c1c026[m HEAD@{44}: commit: readme123
+[33m58f908a[m HEAD@{45}: commit: notebook colab
+[33mf2d1d05[m[33m ([m[1;33mtag: [m[1;33mv1.0.3[m[33m)[m HEAD@{46}: commit: sudo, working folder change, AI fix suggestion
+[33m22366a9[m HEAD@{47}: commit: readme1
+[33me04738a[m HEAD@{48}: commit: readme and colab appimage packer1
+[33mb41fcad[m HEAD@{49}: commit: readme and colab appimage packer
+[33mb89bf75[m[33m ([m[1;33mtag: [m[1;33m1.0.2[m[33m)[m HEAD@{50}: commit: req PyQT5
+[33m188b839[m HEAD@{51}: commit: gui1
+[33m3bd299a[m HEAD@{52}: commit: gui
+[33m2b239b4[m HEAD@{53}: commit: readme en pl
+[33mc7543bf[m HEAD@{54}: commit: gui
+[33m313e80b[m[33m ([m[1;33mtag: [m[1;33mv1.0.1[m[33m)[m HEAD@{55}: commit: Add .gitignore file
+[33m5199921[m HEAD@{56}: reset: moving to HEAD~3
+[33ma2c5eba[m HEAD@{57}: commit: Add .gitignore file
+[33mfc77b2a[m HEAD@{58}: commit: move to gemini 2.0 flash
+[33m65a1f99[m HEAD@{59}: commit: move to gemini 2.0 flash
+[33m5199921[m HEAD@{60}: commit: Funding.yaml
+[33m42454a3[m HEAD@{61}: commit: licence2
+[33me8b08e6[m HEAD@{62}: checkout: moving from main to main
+[33me8b08e6[m HEAD@{63}: commit: licence1
+[33m6e185a2[m HEAD@{64}: commit: licence
+[33mb3bb96a[m HEAD@{65}: commit: gemini
+[33me3424a7[m HEAD@{66}: checkout: moving from main to main
+[33me3424a7[m HEAD@{67}: clone: from https://github.com/hyconiek/linux_ai_terminal_assistant.git

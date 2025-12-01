@@ -1248,7 +1248,7 @@ Configuration:
         QTimer.singleShot(0, lambda: self.input_field.setFocus())
 
     def show_about(self):
-        QMessageBox.about(self, "About Linux AI Assistant", "<h3>Linux AI Assistant</h3><p>Version 1.1</p><p>Created by: Krzysztof Żuchowski</p>"
+        QMessageBox.about(self, "About Linux AI Assistant", "<h3>Linux AI Assistant</h3><p>Version 1.2</p><p>Created by: Krzysztof Żuchowski</p>"
                           "<p>© 2025 Krzysztof Żuchowski. All rights reserved.</p><p>Licensed under the MIT License.</p>"
                           "<p>AI-powered command generation for Linux.</p><hr><p>Support the project:</p>"
                           "<p><a href='https://www.buymeacoffee.com/krzyzu.83'>Buy me a coffee (krzyzu.83)</a></p>"
